@@ -132,6 +132,7 @@ function formView(){
   <div class="f"><label>نهاية العرض (اختياري)</label><input id="oend" type="datetime-local" value="${lin(p.offer_end)}"></div></div>
   <small style="margin-bottom:8px">ثمن التجزئة فوق هو الثمن قبل التخفيض. الثمن بعد التخفيض كيتحسب أوتوماتيكياً، وكيرجع للثمن العادي ملي كيسالي العرض.</small>
   <div class="f"><label><input type="checkbox" id="offer" ${p.offer?"checked":""}> يظهر في العروض</label></div>
+  <div class="f"><label><input type="checkbox" id="hot" ${p.hot?"checked":""}> 🔥 الأكثر مبيعاً (Hot)</label></div>
   <div class="f"><label><input type="checkbox" id="active" ${p.active!==false?"checked":""}> ظاهر في المتجر</label></div>
   <div class="f"><label>إيموجي بديل للصورة</label><input id="e" value="${v("e")}"></div>
   <div class="f"><label>صور المنتج (حتى 6) <span id="cnt"></span></label><input id="file" type="file" accept="image/*" multiple>
@@ -230,7 +231,7 @@ document.addEventListener("submit",async e=>{
   }
   if(e.target.id==="pf"){
     const n=id=>Number($("#"+id).value),er=[];
-    const d={ar:$("#ar").value.trim(),fr:$("#fr").value.trim(),dar:$("#dar").value.trim(),dfr:$("#dfr").value.trim(),cat:$("#cat").value,retail:n("retail"),wholesale:n("wholesale"),min:n("min"),stock:n("stock"),offer:$("#offer").checked,active:$("#active").checked,e:$("#e").value.trim()||"📦",bg:editing.bg||"#ffffff",video:editing.video||null,imgs:editing.imgs||[],img:(editing.imgs&&editing.imgs[0])||null};
+    const d={ar:$("#ar").value.trim(),fr:$("#fr").value.trim(),dar:$("#dar").value.trim(),dfr:$("#dfr").value.trim(),cat:$("#cat").value,retail:n("retail"),wholesale:n("wholesale"),min:n("min"),stock:n("stock"),offer:$("#offer").checked,hot:$("#hot").checked,active:$("#active").checked,e:$("#e").value.trim()||"📦",bg:editing.bg||"#ffffff",video:editing.video||null,imgs:editing.imgs||[],img:(editing.imgs&&editing.imgs[0])||null};
     const pc=n("disc"),oe=$("#oend").value;
     if(!(pc>=0&&pc<=90))er.push("نسبة التخفيض بين 0 و90.");
     else if(pc>0){if(oe&&new Date(oe)<=new Date())er.push("نهاية العرض لازم تكون فالمستقبل.");d.old_price=d.retail;d.retail=Math.round(d.retail*(1-pc/100)*100)/100;d.offer_end=oe?new Date(oe).toISOString():null;d.offer=true}
