@@ -1,0 +1,36 @@
+{
+ "settings": {
+  "whatsapp": "212600000000",
+  "shipping": 30,
+  "freeFrom": 500,
+  "demo": true,
+  "banner": {
+   "ar": "عروض الجملة: لكل منتج كمية دنيا خاصة به. ابدأ الطلب وشوف التوفير.",
+   "fr": "Offres gros : chaque produit a sa quantité minimale. Voyez l'économie dans le panier."
+  }
+ },
+ "products": [
+  {
+   "id": 1,
+   "cat": "kitchen",
+   "ar": "طقم ترمس 500 مل مع 3 أكواب",
+   "fr": "Set thermos 500 ml + 3 tasses",
+   "dar": "ترمس ستانلس ستيل بعلبة هدية وثلاثة أكواب.",
+   "dfr": "Thermos inox avec 3 tasses, en coffret cadeau.",
+   "retail": 120,
+   "wholesale": 85,
+   "min": 6,
+   "stock": 40,
+   "img": "images/p01.jpg",
+   "bg": "#ffffff",
+   "offer": true
+  },
+  {
+   "id": 2,
+   "cat": "home",
+   "ar": "ممسحة أرضية برذاذ الماء",
+   "fr": "Balai serpillière à spray",
+   "dar": "خزان ماء وبخاخ مدمج لتنظيف الأرضية بسهولة.",
+   "dfr": "Réservoir et spray intégrés pour nettoyer facilement.",
+   "retail": 90,
+   "wholesale": 60,
