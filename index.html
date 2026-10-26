@@ -34,7 +34,7 @@ header{position:sticky;top:0;z-index:20;background:var(--teal);color:#fff}
 .p{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
 .pic{aspect-ratio:1/1;display:grid;place-items:center;font-size:3.4rem;position:relative}
 .pic img{width:100%;height:100%;object-fit:cover}
-.sl{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;width:100%;height:100%;scrollbar-width:none}.sl::-webkit-scrollbar{display:none}.sl img{flex:none;width:100%;scroll-snap-align:center}
+.sl{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;width:100%;height:100%;scrollbar-width:none}.sl::-webkit-scrollbar{display:none}.sl img,.sl video{flex:none;width:100%;height:100%;object-fit:cover;scroll-snap-align:center;background:#000}
 .dots{position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:5px;pointer-events:none}.dots i{width:6px;height:6px;border-radius:50%;background:rgba(0,0,0,.25)}.dots i.on{background:var(--teal,#0e7490)}
 .tag{position:absolute;top:8px;inset-inline-start:8px;background:var(--red);color:#fff;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:6px}
 .so{position:absolute;inset:0;background:rgba(255,255,255,.7);display:grid;place-items:center;font-size:1rem;font-weight:800;color:var(--red)}
@@ -88,6 +88,19 @@ form input,form select,form textarea{width:100%;padding:10px 12px;border-radius:
 .err{color:var(--red);font-size:.82rem;min-height:1em}
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:99px;font-size:.88rem;z-index:40;display:none}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.shade2{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:none}.shade2.on{display:block}
+.rv{position:fixed;left:0;right:0;margin:auto;bottom:0;width:min(560px,100%);max-height:85vh;overflow:auto;background:#fff;z-index:51;border-radius:18px 18px 0 0;padding:16px 14px 22px;transform:translateY(105%);transition:transform .25s}.rv.on{transform:none}
+.rv .x{position:absolute;top:10px;inset-inline-start:12px;border:0;background:#eee;border-radius:50%;width:30px;height:30px;cursor:pointer}
+.rv h3{font-size:1rem;margin:0 40px 6px}.rsum{margin-bottom:6px}
+.st{color:#f5a623;letter-spacing:1px}.st.big{font-size:1.3rem}
+.rt{background:none;border:0;padding:0;font-size:.8rem;color:#66727e;text-align:start;cursor:pointer;font-family:inherit}
+.rc{border-top:1px solid #eee;padding:8px 0;font-size:.88rem}.rc p{margin:3px 0}.rc small{color:#888}
+.pick button{background:none;border:0;font-size:1.9rem;color:#d4d4d4;padding:0 2px;cursor:pointer}.pick button.on{color:#f5a623}
+#rvf{display:flex;flex-direction:column;gap:8px;margin-top:12px}#rvf input,#rvf textarea{padding:10px;border:1.5px solid #e0dacc;border-radius:10px;font:inherit}
+.rdone{margin-top:12px;font-weight:700;color:#117a3d}
+.old{color:#8a8f98;font-weight:400;font-size:.8em;margin-inline-end:4px}
+.cd{font-size:.78rem;color:#c2410c;font-weight:600}.cd b{font-variant-numeric:tabular-nums}
+.tag.d{background:#c2410c}
 </style>
 </head>
 <body>
@@ -113,6 +126,8 @@ form input,form select,form textarea{width:100%;padding:10px 12px;border-radius:
 
 <footer><div class="wrap"><b>MCCOLIS MAROC</b><p id="foot"></p></div></footer>
 <a class="float" id="waFloat" href="#" target="_blank" rel="noopener">💬 WhatsApp</a>
+<div id="shade2" class="shade2" data-rvx></div>
+<aside class="rv" id="rv"><button class="x" data-rvx aria-label="close">✕</button><div id="rvBody"></div></aside>
 <div id="toast"></div>
 <div class="shade" id="shade"></div>
 <aside class="drawer" id="drawer">
@@ -195,17 +210,20 @@ function clampCart(){
 /* ===== العرض ===== */
 const first = p => (p.imgs&&p.imgs[0])||p.img;
 const pics = p => { const l=(p.imgs&&p.imgs.length)?p.imgs:(p.img?[p.img]:[]);
-  if(l.length<2) return thumb(p);
-  return `<div class="sl">${l.map(u=>`<img src="${esc(u)}" alt="" loading="lazy">`).join("")}</div><div class="dots">${l.map((_,k)=>`<i class="${k?"":"on"}"></i>`).join("")}</div>`; };
+  const n=l.length+(p.video?1:0);
+  if(n<2) return thumb(p);
+  const v=p.video?`<video src="${esc(p.video)}" controls playsinline preload="metadata"></video>`:"";
+  return `<div class="sl">${l.map(u=>`<img src="${esc(u)}" alt="" loading="lazy">`).join("")}${v}</div><div class="dots">${Array.from({length:n},(_,k)=>`<i class="${k?"":"on"}"></i>`).join("")}</div>`; };
 document.addEventListener("scroll",e=>{const s=e.target;if(!s.classList||!s.classList.contains("sl"))return;const n=Math.round(Math.abs(s.scrollLeft)/s.clientWidth);[...s.nextElementSibling.children].forEach((d,k)=>d.classList.toggle("on",k===n))},true);
 const thumb = p => first(p) ? `<img src="${esc(first(p))}" alt="" loading="lazy">` : `<span aria-hidden="true">${esc(p.e||"📦")}</span>`;
 function card(p){
   const out=p.stock<=0, qn=out?1:Math.min(Math.max(cq[p.id]||1,1),p.stock); cq[p.id]=qn;
   const ws=isWs(p,qn);
   return `<article class="p" id="c${p.id}">
-   <div class="pic" style="background:${esc(p.bg||"#eee")}">${pics(p)}${p.offer?`<span class="tag">${t("offer")}</span>`:""}${out?`<div class="so">${t("out")}</div>`:""}</div>
-   <div class="info"><div class="nm">${esc(p[lang])}</div><div class="ds">${esc(p[lang==="ar"?"dar":"dfr"])}</div>
-   <div class="pl"><span>${t("retail")}</span><b>${money(p.retail)}</b></div>
+   <div class="pic" style="background:${esc(p.bg||"#eee")}">${pics(p)}${disc(p)?`<span class="tag d">-${pct(p)}%</span>`:p.offer?`<span class="tag">${t("offer")}</span>`:""}${out?`<div class="so">${t("out")}</div>`:""}</div>
+   <div class="info"><div class="nm">${esc(p[lang])}</div>${ratingBtn(p)}<div class="ds">${esc(p[lang==="ar"?"dar":"dfr"])}</div>
+   <div class="pl"><span>${t("retail")}</span><b>${disc(p)?`<s class="old">${money(p.old_price)}</s>`:""}${money(p.retail)}</b></div>
+   ${disc(p)&&p.offer_end?`<div class="cd">⏳ ${t("ends")} <b data-end="${esc(p.offer_end)}">${cdText(p.offer_end)}</b></div>`:""}
    ${hasW(p)?`<div class="pl w"><span>${t("wholesale")} · ${t("from")} ${p.min} ${t("pcs")}</span><b>${money(p.wholesale)}</b></div>`:""}
    <div class="stk">${out?t("out"):t("stock")+": "+p.stock}</div>
    ${out?"":`<div class="row"><div class="qty"><button data-cq="${p.id}" data-d="-1" ${qn<=1?"disabled":""}>−</button><span>${qn}</span><button data-cq="${p.id}" data-d="1" ${qn>=p.stock?"disabled":""}>+</button></div>
@@ -313,6 +331,50 @@ document.addEventListener("submit",async e=>{
   $("#fform").innerHTML=`<p style="margin:6px 0 12px;font-weight:700">${esc(head)}</p><a class="send" style="display:block;text-align:center;text-decoration:none" href="${url}" target="_blank" rel="noopener">${t("openWa")}</a>`;
 });
 
+/* ===== العروض والتقييمات ===== */
+Object.assign(T.ar,{ends:"ينتهي العرض بعد",dd:"ي",rate:"قيّم المنتج",noRev:"ما كاين حتى تعليق بعد. كن أول من يقيّم!",yourName:"اسمك",yourCom:"اكتب تعليقك (اختياري)",sendRev:"إرسال التقييم",thanks:"شكراً! غادي يظهر تعليقك بعد المراجعة.",already:"سبق ليك قيّمتي هاد المنتج، شكراً.",revNeed:"كتب اسمك (حرفين على الأقل) واختار عدد النجوم.",revErr:"تعذّر الإرسال، حاول مرة أخرى."});
+Object.assign(T.fr,{ends:"L'offre se termine dans",dd:"j",rate:"Noter le produit",noRev:"Aucun avis pour l'instant. Soyez le premier !",yourName:"Votre nom",yourCom:"Votre commentaire (facultatif)",sendRev:"Envoyer l'avis",thanks:"Merci ! Votre avis apparaîtra après vérification.",already:"Vous avez déjà noté ce produit, merci.",revNeed:"Indiquez votre nom (2 lettres min.) et choisissez les étoiles.",revErr:"Envoi impossible, réessayez."});
+const disc = p => p.old_price>p.retail && (!p.offer_end || new Date(p.offer_end)>Date.now());
+const pct = p => Math.round((1-p.retail/p.old_price)*100);
+const normP = p => { if(p.old_price && p.offer_end && new Date(p.offer_end)<=Date.now()){p.retail=p.old_price;p.old_price=null;p.offer_end=null;p.offer=false} return p };
+function cdText(end){ let s=Math.max(0,Math.floor((new Date(end)-Date.now())/1000)); const d=Math.floor(s/86400); s%=86400;
+  const p2=n=>String(n).padStart(2,"0"); return (d?d+t("dd")+" ":"")+p2(Math.floor(s/3600))+":"+p2(Math.floor(s%3600/60))+":"+p2(s%60); }
+let REV=[], rvId=null, rvStar=0, expiring=false;
+const stat = id => { const l=REV.filter(r=>r.product_id==id); return {n:l.length, avg:l.length?l.reduce((s,r)=>s+r.rating,0)/l.length:0} };
+const stars = v => "★".repeat(Math.round(v))+"☆".repeat(5-Math.round(v));
+const ratingBtn = p => { const s=stat(p.id); return `<button class="rt" data-rev="${p.id}">${s.n?`<span class="st">${stars(s.avg)}</span> ${s.avg.toFixed(1)} (${s.n})`:`☆ ${t("rate")}`}</button>`; };
+async function loadReviews(){ if(!SB_ON)return; try{const r=await sb("reviews?select=id,product_id,name,rating,comment,created_at&order=created_at.desc&limit=500"); if(r.ok)REV=await r.json()}catch(_){} }
+function renderRev(){
+  const p=P(rvId); if(!p)return; const l=REV.filter(r=>r.product_id==rvId), s=stat(rvId); let done=false;
+  try{done=!!localStorage.getItem("mm_rev_"+rvId)}catch(_){}
+  $("#rvBody").innerHTML=`<h3>${esc(p[lang])}</h3>
+   <div class="rsum">${s.n?`<span class="st big">${stars(s.avg)}</span> <b>${s.avg.toFixed(1)}</b> / 5 · ${s.n}`:t("noRev")}</div>
+   <div>${l.map(r=>`<div class="rc"><div><b>${esc(r.name)}</b> <span class="st">${stars(r.rating)}</span></div>${r.comment?`<p>${esc(r.comment)}</p>`:""}<small>${new Date(r.created_at).toLocaleDateString(lang==="ar"?"ar-MA-u-nu-latn":"fr-FR")}</small></div>`).join("")}</div>
+   ${SYNC?(done?`<p class="rdone">${t("already")}</p>`:`<form id="rvf" novalidate><div class="pick" id="pick">${[1,2,3,4,5].map(k=>`<button type="button" data-star="${k}">★</button>`).join("")}</div>
+    <input id="rn" maxlength="40" placeholder="${t("yourName")}"><textarea id="rc" rows="3" maxlength="500" placeholder="${t("yourCom")}"></textarea>
+    <div class="err" id="rerr"></div><button class="send" type="submit">${t("sendRev")}</button></form>`):""}`;
+}
+function openRev(id){ rvId=id; rvStar=0; renderRev(); $("#rv").classList.add("on"); $("#shade2").classList.add("on"); document.body.style.overflow="hidden"; }
+function closeRev(){ $("#rv").classList.remove("on"); $("#shade2").classList.remove("on"); document.body.style.overflow=""; }
+document.addEventListener("click",e=>{ const g=a=>e.target.closest("["+a+"]"); let x;
+  if(x=g("data-rev"))openRev(x.dataset.rev);
+  else if(x=g("data-star")){rvStar=+x.dataset.star;document.querySelectorAll("#pick button").forEach(b=>b.classList.toggle("on",+b.dataset.star<=rvStar))}
+  else if(g("data-rvx"))closeRev(); });
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeRev()});
+document.addEventListener("submit",async e=>{
+  if(e.target.id!=="rvf")return; e.preventDefault();
+  const name=$("#rn").value.trim(), com=$("#rc").value.trim();
+  if(name.length<2||!rvStar){$("#rerr").textContent=t("revNeed");return}
+  const btn=e.target.querySelector(".send"); btn.disabled=true; $("#rerr").textContent="";
+  try{ const r=await sb("reviews",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({product_id:Number(rvId),name,rating:rvStar,comment:com||null})});
+    if(!r.ok)throw 0; try{localStorage.setItem("mm_rev_"+rvId,"1")}catch(_){}
+    e.target.outerHTML=`<p class="rdone">${t("thanks")}</p>`;
+  }catch(_){ $("#rerr").textContent=t("revErr"); btn.disabled=false; } });
+setInterval(()=>{ let gone=false;
+  document.querySelectorAll("[data-end]").forEach(el=>{ if(new Date(el.dataset.end)<=Date.now())gone=true; else el.textContent=cdText(el.dataset.end) });
+  if(gone&&!expiring){expiring=true; DB.products.forEach(normP);
+    (async()=>{ try{await sb("rpc/expire_offers",{method:"POST",body:"{}"})}catch(_){} await loadData(); clampCart(); save(); renderGrid(); renderCart(); expiring=false })(); } },1000);
+
 /* ===== التحميل: Supabase إن وُجد، وإلا products.json ===== */
 const SB_URL="https://wrkuevqtrugzufpwsomr.supabase.co", SB_KEY="sb_publishable_ZBcufnBI-cLy14WZhKp4rQ_tyQNid-M";
 const SB_ON=SB_KEY.startsWith("sb_publishable_")||SB_KEY.startsWith("eyJ");
@@ -320,15 +382,15 @@ let SYNC=false;
 const sb=(path,opt={})=>fetch(SB_URL+"/rest/v1/"+path,{...opt,headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json",...(opt.headers||{})}});
 function valid(d){return d&&d.settings&&Array.isArray(d.products)}
 async function loadData(){
-  if(SB_ON){ try{
+  if(SB_ON){ try{ try{await sb("rpc/expire_offers",{method:"POST",body:"{}"})}catch(_){}
     const [a,b]=await Promise.all([sb("products?select=*&active=eq.true&order=id"),sb("settings?select=data&id=eq.1")]);
     if(a.ok){ const prods=await a.json();
       if(prods.length){ const st=b.ok?(await b.json())[0]:null;
-        DB={settings:Object.assign({},DEFAULTS.settings,st&&st.data),products:prods}; SYNC=true; return } }
+        DB={settings:Object.assign({},DEFAULTS.settings,st&&st.data),products:prods.map(normP)}; SYNC=true; return } }
   }catch(e){} }
-  try{const r=await fetch("products.json",{cache:"no-cache"});if(r.ok){const d=await r.json();if(valid(d))DB=d}}catch(e){}
+  try{const r=await fetch("products.json",{cache:"no-cache"});if(r.ok){const d=await r.json();if(valid(d)){DB=d;DB.products.forEach(normP)}}}catch(e){}
 }
-async function init(){ await loadData(); clampCart(); save(); applyLang(); }
+async function init(){ await loadData(); await loadReviews(); clampCart(); save(); applyLang(); }
 init();
 </script>
 </body>
