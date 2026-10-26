@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>MCCOLIS MAROC - الإدارة</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:#f3f1ec;color:#1c2630;line-height:1.5;padding-bottom:40px}
+button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;border:0}
+.wrap{max-width:760px;margin:auto;padding:0 12px}
+header{background:#0b4553;color:#fff;padding:12px 0}
+header .wrap{display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:1.05rem}
+.b{background:#0f5c6e;color:#fff;border-radius:9px;padding:9px 14px;font-weight:700;text-decoration:none;display:inline-block;font-size:.9rem}
+.b.g{background:#e8e2d6;color:#1c2630}.b.r{background:#c2410c}.b.w{background:#1faa59}
+.tabs{display:flex;gap:6px;margin:12px 0}
+.tab{flex:1;padding:10px;border-radius:9px;background:#e8e2d6;font-weight:700}.tab.on{background:#0f5c6e;color:#fff}
+.card{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px;border:1px solid #e8e2d6}
+.pr{display:flex;gap:10px;align-items:center}
+.th{width:54px;height:54px;border-radius:10px;display:grid;place-items:center;font-size:1.6rem;overflow:hidden;flex:none;background:#fff;border:1px solid #eee}
+.th img{width:100%;height:100%;object-fit:contain}
+.pr .t{flex:1;font-size:.9rem}small{color:#66727e;display:block}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{display:block;font-size:.82rem;font-weight:600;margin-bottom:2px}
+input,select,textarea{width:100%;padding:9px 10px;border-radius:8px;border:1.5px solid #e0dacc;background:#fff}
+input[type=checkbox]{width:auto}.f{margin-bottom:8px}
+.err{color:#c2410c;font-size:.85rem;min-height:1em}.ok{color:#117a3d;font-size:.88rem;min-height:1.2em;margin:6px 0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.st{padding:2px 8px;border-radius:6px;font-size:.75rem;font-weight:700;background:#e8e2d6}
+.it{font-size:.88rem;border-top:1px dashed #e8e2d6;padding:3px 0;display:flex;justify-content:space-between;gap:8px}
+.warn{background:#fff3d6;border:1px solid #f0d58a;border-radius:10px;padding:10px 12px;margin:12px 0;font-size:.86rem}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>MCCOLIS MAROC — الإدارة</h1><button class="b g" id="logout" hidden>خروج</button></div></header>
+<div class="wrap"><div id="msg" class="ok"></div><div id="app"></div></div>
+
+<script>
+const SB_URL="https://wrkuevqtrugzufpwsomr.supabase.co", SB_KEY="sb_publishable_ZBcufnBI-cLy14WZhKp4rQ_tyQNid-M";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const CATS={home:"المنزل",kitchen:"المطبخ",perf:"العطور",elec:"الإلكترونيات",acc:"الإكسسوارات"};
+const ST={new:"جديد",confirmed:"مؤكد",shipped:"في الطريق",delivered:"تم التسليم",cancelled:"ملغى"};
+const TY={retail:"تجزئة",wholesale:"جملة",mixed:"مختلط"};
+let S=null,tab="orders",editing=null,PR=[];
+try{S=JSON.parse(localStorage.getItem("mm_sess")||"null")}catch(e){}
+const flash=(m,bad)=>{const e=$("#msg");e.textContent=m;e.style.color=bad?"#c2410c":"#117a3d";clearTimeout(flash.h);flash.h=setTimeout(()=>e.textContent="",4500)};
+const keep=s=>{S=s;try{s?localStorage.setItem("mm_sess",JSON.stringify(s)):localStorage.removeItem("mm_sess")}catch(e){}};
+
+async function auth(path,body){return fetch(SB_URL+"/auth/v1/"+path,{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body)})}
+async function refresh(){if(!S||!S.refresh_token)return false;try{const r=await auth("token?grant_type=refresh_token",{refresh_token:S.refresh_token});if(!r.ok)return false;const j=await r.json();keep({access_token:j.access_token,refresh_token:j.refresh_token});return true}catch(e){return false}}
+async function api(path,opt={},retry){
+  const h={apikey:SB_KEY,"Content-Type":"application/json",...(opt.headers||{})};
+  if(S)h.Authorization="Bearer "+S.access_token;
+  const r=await fetch(SB_URL+path,{...opt,headers:h});
+  if(r.status===401&&!retry&&await refresh())return api(path,opt,1);
+  return r;
+}
+const errTxt=async r=>{try{const j=await r.json();return j.message||j.error_description||j.msg||JSON.stringify(j)}catch(e){return r.status}};
+
+function loginView(){
+  $("#logout").hidden=true;
+  $("#app").innerHTML=`<form class="card" id="lf" style="margin-top:14px"><div class="f"><label>الإيميل</label><input id="em" type="email" autocomplete="username" dir="ltr"></div>
+  <div class="f"><label>كلمة السر</label><input id="pw" type="password" autocomplete="current-password" dir="ltr"></div>
+  <div class="err" id="err"></div><button class="b" type="submit">دخول</button></form>`;
+}
+async function boot(){
+  if(!SB_KEY.startsWith("sb_publishable_")&&!SB_KEY.startsWith("eyJ")){$("#app").innerHTML=`<div class="warn">المفتاح العمومي غير مضاف بعد. في أول الملف بدّل <b>PASTE_PUBLISHABLE_KEY</b> بمفتاحك الذي يبدأ بـ sb_publishable_.</div>`;return}
+  if(!S)return loginView();
+  const r=await api("/rest/v1/rpc/is_admin",{method:"POST",body:"{}"});
+  if(!r.ok||(await r.json())!==true){ if(r.ok)flash("هذا الحساب ليس مديراً. أضفه في جدول admins.",1); keep(null); return loginView(); }
+  $("#logout").hidden=false; main();
+}
+function main(){
+  $("#app").innerHTML=`<div class="tabs"><button class="tab" data-tab="orders">الطلبات</button><button class="tab" data-tab="prod">المنتجات</button><button class="tab" data-tab="set">الإعدادات</button></div><div id="view"></div>`;
+  show();
+}
+function show(){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.tab===tab));
+  ({orders:ordersView,prod:()=>editing?formView():prodView(),set:setView})[tab]();
+}
+
+/* الطلبات */
+const waNum=p=>p.replace(/[\s.\-]/g,"").replace(/^\+/,"").replace(/^00/,"").replace(/^0/,"212");
+async function ordersView(){
+  $("#view").textContent="...";
+  const r=await api("/rest/v1/orders?select=*&order=id.desc&limit=100"); if(!r.ok)return $("#view").textContent=await errTxt(r);
+  const o=await r.json();
+  $("#view").innerHTML=o.length?o.map(x=>`<div class="card"><div class="pr"><div class="t"><b>#${x.id} · ${esc(x.name)}</b>
+   <small>${new Date(x.created_at).toLocaleString("ar-MA-u-nu-latn")} · ${esc(x.city)} · ${TY[x.sale_type]||""}</small></div><span class="st">${ST[x.status]}</span></div>
+   <div style="margin:8px 0">${x.items.map(i=>`<div class="it"><span>${esc(i.name)} × ${i.qty} (${i.type==="wholesale"?"جملة":"تجزئة"})</span><span>${i.line}</span></div>`).join("")}</div>
+   <div class="it"><span>الهاتف</span><a href="tel:${esc(x.phone)}">${esc(x.phone)}</a></div>
+   <div class="it"><span>العنوان</span><span>${esc(x.address)}</span></div>
+   <div class="it"><span>التوصيل</span><span>${x.shipping}</span></div>
+   <div class="it"><b>المجموع (MAD)</b><b>${x.total}</b></div>
+   <div class="acts"><select data-st="${x.id}" ${x.status==="cancelled"?"disabled":""} style="width:auto">${Object.entries(ST).map(([k,n])=>`<option value="${k}" ${x.status===k?"selected":""}>${n}</option>`).join("")}</select>
+   <a class="b w" target="_blank" rel="noopener" href="https://wa.me/${waNum(x.phone)}">WhatsApp الزبون</a></div></div>`).join(""):`<div class="card">لا توجد طلبات بعد.</div>`;
+}
+
+/* المنتجات */
+const th=p=>p.img?`<img src="${esc(p.img)}" alt="">`:esc(p.e||"📦");
+async function prodView(){
+  $("#view").textContent="...";
+  const r=await api("/rest/v1/products?select=*&order=id"); if(!r.ok)return $("#view").textContent=await errTxt(r);
+  PR=await r.json();
+  $("#view").innerHTML=`<div class="acts" style="margin:0 0 10px"><button class="b" data-new>＋ إضافة منتج</button>${PR.length?"":`<button class="b g" id="imp">استيراد المنتجات التجريبية (products.json)</button>`}</div>`+
+  PR.map(p=>`<div class="card"><div class="pr"><div class="th">${th(p)}</div><div class="t"><b>${esc(p.ar)}</b>
+   <small>${CATS[p.cat]||""} · تجزئة ${p.retail} · جملة ${p.wholesale||"—"} (من ${p.min}) · مخزون ${p.stock}${p.offer?" · عرض":""}${p.active?"":" · مخفي"}</small></div></div>
+   <div class="acts"><button class="b" data-edit="${p.id}">تعديل</button><button class="b r" data-del="${p.id}">حذف</button></div></div>`).join("");
+}
+function formView(){
+  const p=editing,v=k=>esc(p[k]);
+  $("#view").innerHTML=`<form class="card" id="pf" novalidate>
+  <div class="f"><label>الاسم بالعربية</label><input id="ar" value="${v("ar")}"></div>
+  <div class="f"><label>Nom en français</label><input id="fr" dir="ltr" value="${v("fr")}"></div>
+  <div class="f"><label>الوصف بالعربية</label><textarea id="dar" rows="2">${v("dar")}</textarea></div>
+  <div class="f"><label>Description en français</label><textarea id="dfr" rows="2" dir="ltr">${v("dfr")}</textarea></div>
+  <div class="f"><label>التصنيف</label><select id="cat">${Object.entries(CATS).map(([k,n])=>`<option value="${k}" ${p.cat===k?"selected":""}>${n}</option>`).join("")}</select></div>
+  <div class="g2"><div class="f"><label>ثمن التجزئة (MAD)</label><input id="retail" type="number" min="0" step="0.01" inputmode="decimal" value="${p.retail}"></div>
+  <div class="f"><label>ثمن الجملة (0 = بدون جملة)</label><input id="wholesale" type="number" min="0" step="0.01" inputmode="decimal" value="${p.wholesale||0}"></div>
+  <div class="f"><label>أقل كمية للجملة</label><input id="min" type="number" min="2" step="1" inputmode="numeric" value="${p.min||6}"></div>
+  <div class="f"><label>المخزون</label><input id="stock" type="number" min="0" step="1" inputmode="numeric" value="${p.stock}"></div></div>
+  <div class="f"><label><input type="checkbox" id="offer" ${p.offer?"checked":""}> يظهر في العروض</label></div>
+  <div class="f"><label><input type="checkbox" id="active" ${p.active!==false?"checked":""}> ظاهر في المتجر</label></div>
+  <div class="f"><label>إيموجي بديل للصورة</label><input id="e" value="${v("e")}"></div>
+  <div class="f"><label>صورة المنتج</label><input id="file" type="file" accept="image/*">
+  <div class="pr" style="margin-top:6px"><div class="th" id="prev">${th(p)}</div><button type="button" class="b g" id="rmimg">إزالة الصورة</button></div></div>
+  <div class="err" id="err"></div><div class="acts"><button class="b" type="submit">حفظ</button><button type="button" class="b g" id="cancel">إلغاء</button></div></form>`;
+}
+function resize(file){return new Promise((ok,no)=>{const r=new FileReader();r.onerror=no;r.onload=()=>{const i=new Image();i.onerror=no;i.onload=()=>{const s=Math.min(1,640/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=Math.round(i.width*s);c.height=Math.round(i.height*s);c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(b=>b?ok(b):no(),"image/jpeg",.78)};i.src=r.result};r.readAsDataURL(file)})}
+async function upload(file){
+  const b=await resize(file),name=Date.now()+".jpg";
+  const r=await api("/storage/v1/object/product-images/"+name,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:b});
+  if(!r.ok)throw new Error(await errTxt(r));
+  return SB_URL+"/storage/v1/object/public/product-images/"+name;
+}
+
+/* الإعدادات */
+async function setView(){
+  const r=await api("/rest/v1/settings?select=data&id=eq.1"); const j=r.ok?await r.json():[]; const s=(j[0]&&j[0].data)||{},b=s.banner||{};
+  $("#view").innerHTML=`<form class="card" id="sf"><div class="f"><label>رقم WhatsApp (212XXXXXXXXX)</label><input id="wa" inputmode="numeric" value="${esc(s.whatsapp)}"></div>
+  <div class="g2"><div class="f"><label>مصاريف التوصيل (MAD)</label><input id="ship" type="number" min="0" value="${s.shipping==null?30:s.shipping}"></div>
+  <div class="f"><label>توصيل مجاني من (MAD)</label><input id="free" type="number" min="0" value="${s.freeFrom==null?500:s.freeFrom}"></div></div>
+  <div class="f"><label>رسالة العروض بالعربية</label><input id="bar" value="${esc(b.ar)}"></div>
+  <div class="f"><label>Message promo en français</label><input id="bfr" dir="ltr" value="${esc(b.fr)}"></div>
+  <div class="f"><label><input type="checkbox" id="demo" ${s.demo?"checked":""}> إظهار تنبيه "نسخة تجريبية"</label></div>
+  <div class="err" id="err"></div><button class="b" type="submit">حفظ الإعدادات</button></form>`;
+}
+
+/* الأحداث */
+document.addEventListener("click",async e=>{
+  const g=a=>e.target.closest("["+a+"]");let x;
+  if(x=g("data-tab")){tab=x.dataset.tab;editing=null;show()}
+  else if(e.target.id==="logout"){keep(null);boot()}
+  else if(g("data-new")){editing={cat:"home",ar:"",fr:"",dar:"",dfr:"",retail:0,wholesale:0,min:6,stock:0,offer:false,active:true,e:"📦",bg:"#ffffff"};formView()}
+  else if(x=g("data-edit")){editing={...PR.find(p=>p.id==x.dataset.edit)};formView()}
+  else if(x=g("data-del")){const p=PR.find(p=>p.id==x.dataset.del);if(confirm("حذف «"+p.ar+"» نهائياً؟")){const r=await api("/rest/v1/products?id=eq."+p.id,{method:"DELETE"});r.ok?(flash("تم الحذف"),prodView()):flash(await errTxt(r),1)}}
+  else if(e.target.id==="cancel"){editing=null;show()}
+  else if(e.target.id==="rmimg"){editing.img=null;$("#prev").innerHTML=esc(editing.e||"📦")}
+  else if(e.target.id==="imp"){
+    if(!confirm("استيراد المنتجات التجريبية وإعداداتها إلى قاعدة البيانات؟"))return;
+    try{const d=await (await fetch("products.json",{cache:"no-cache"})).json();
+      const rows=d.products.map(({id,...p})=>({...p,active:true,offer:!!p.offer}));
+      let r=await api("/rest/v1/products",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(rows)});if(!r.ok)throw new Error(await errTxt(r));
+      r=await api("/rest/v1/settings",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({id:1,data:d.settings})});if(!r.ok)throw new Error(await errTxt(r));
+      flash("تم الاستيراد.");prodView()}catch(er){flash("فشل الاستيراد: "+er.message,1)}}
+});
+document.addEventListener("change",async e=>{
+  if(e.target.id==="file"&&e.target.files[0]){try{flash("جاري رفع الصورة...");editing.img=await upload(e.target.files[0]);$("#prev").innerHTML=`<img src="${esc(editing.img)}" alt="">`;flash("تم رفع الصورة. اضغط حفظ.")}catch(er){flash("فشل رفع الصورة: "+er.message,1)}}
+  if(e.target.dataset&&e.target.dataset.st){const r=await api("/rest/v1/orders?id=eq."+e.target.dataset.st,{method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify({status:e.target.value})});
+    r.ok?flash("تم تحديث الحالة"+(e.target.value==="cancelled"?" وإرجاع المخزون":"")):flash(await errTxt(r),1);ordersView()}
+});
+document.addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(e.target.id==="lf"){
+    const r=await auth("token?grant_type=password",{email:$("#em").value.trim(),password:$("#pw").value});
+    if(!r.ok){$("#err").textContent="الإيميل أو كلمة السر غير صحيحين.";return}
+    const j=await r.json();keep({access_token:j.access_token,refresh_token:j.refresh_token});boot();
+  }
+  if(e.target.id==="pf"){
+    const n=id=>Number($("#"+id).value),er=[];
+    const d={ar:$("#ar").value.trim(),fr:$("#fr").value.trim(),dar:$("#dar").value.trim(),dfr:$("#dfr").value.trim(),cat:$("#cat").value,retail:n("retail"),wholesale:n("wholesale"),min:n("min"),stock:n("stock"),offer:$("#offer").checked,active:$("#active").checked,e:$("#e").value.trim()||"📦",bg:editing.bg||"#ffffff",img:editing.img||null};
+    if(!d.ar)er.push("الاسم بالعربية مطلوب.");if(!d.fr)d.fr=d.ar;
+    if(!(d.retail>0))er.push("ثمن التجزئة يجب أن يكون أكبر من 0.");
+    if(d.wholesale<0||(d.wholesale>0&&d.wholesale>=d.retail))er.push("ثمن الجملة يجب أن يكون أقل من التجزئة (أو 0).");
+    if(!Number.isInteger(d.min)||d.min<2)er.push("أقل كمية للجملة عدد صحيح ابتداء من 2.");
+    if(!Number.isInteger(d.stock)||d.stock<0)er.push("المخزون عدد صحيح ابتداء من 0.");
+    if(er.length){$("#err").innerHTML=er.join("<br>");return}
+    const r=editing.id?await api("/rest/v1/products?id=eq."+editing.id,{method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify(d)}):await api("/rest/v1/products",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(d)});
+    if(!r.ok){$("#err").textContent=await errTxt(r);return}
+    editing=null;flash("تم الحفظ. التغيير ظاهر للزبناء مباشرة.");show();
+  }
+  if(e.target.id==="sf"){
+    const wa=$("#wa").value.replace(/\D/g,""),ship=Number($("#ship").value),free=Number($("#free").value);
+    if(!/^212[567]\d{8}$/.test(wa)){$("#err").textContent="الرقم بصيغة 212XXXXXXXXX (12 رقماً).";return}
+    if(!(ship>=0)||!(free>=0)){$("#err").textContent="قيم التوصيل غير صالحة.";return}
+    const data={whatsapp:wa,shipping:ship,freeFrom:free,demo:$("#demo").checked,banner:{ar:$("#bar").value.trim(),fr:$("#bfr").value.trim()}};
+    const r=await api("/rest/v1/settings",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({id:1,data})});
+    r.ok?flash("تم حفظ الإعدادات."):$("#err").textContent=await errTxt(r);
+  }
+});
+boot();
+</script>
+</body>
+</html>

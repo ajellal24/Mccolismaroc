@@ -33,7 +33,7 @@ header{position:sticky;top:0;z-index:20;background:var(--teal);color:#fff}
 @media(min-width:700px){.grid{grid-template-columns:repeat(3,1fr)}.hero h1{font-size:2rem}}
 .p{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
 .pic{aspect-ratio:1/1;display:grid;place-items:center;font-size:3.4rem;position:relative}
-.pic img{width:100%;height:100%;object-fit:contain}
+.pic img{width:100%;height:100%;object-fit:cover}
 .tag{position:absolute;top:8px;inset-inline-start:8px;background:var(--red);color:#fff;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:6px}
 .so{position:absolute;inset:0;background:rgba(255,255,255,.7);display:grid;place-items:center;font-size:1rem;font-weight:800;color:var(--red)}
 .info{padding:10px 11px 12px;display:flex;flex-direction:column;gap:5px;flex:1}
@@ -153,6 +153,8 @@ fr:{dir:"ltr",lang:"عربي",cart:"🛒 Panier",h1:"Maison, cuisine, parfums et
  dh:"MAD",waHi:"Bonjour, je souhaite commander chez MCCOLIS MAROC :",waC:"Informations client",waN:"Nom",waP:"Téléphone",waCi:"Ville",waA:"Adresse",
  waOne:"Bonjour, ce produit m'intéresse :",waGen:"Bonjour, je voudrais des informations sur vos produits."}
 };
+Object.assign(T.ar,{orderNo:"رقم الطلب",unsaved:"⚠️ لم يُسجَّل الطلب في النظام، سيُعتمد على رسالة WhatsApp فقط",savedOk:"تم تسجيل طلبك. اضغط الزر لإرسال التفاصيل عبر WhatsApp",openWa:"💬 فتح WhatsApp وإرسال الطلب"});
+Object.assign(T.fr,{orderNo:"N° de commande",unsaved:"⚠️ Commande non enregistrée dans le système, seul le message WhatsApp fait foi",savedOk:"Commande enregistrée. Appuyez pour envoyer les détails sur WhatsApp",openWa:"💬 Ouvrir WhatsApp et envoyer"});
 const CITIES=["الدار البيضاء","الرباط","مراكش","فاس","طنجة","أكادير","مكناس","وجدة","تطوان","القنيطرة","آسفي","أخرى"];
 
 const $ = s => document.querySelector(s);
@@ -276,31 +278,50 @@ $("#closeCart").addEventListener("click",()=>openCart(false));
 $("#shade").addEventListener("click",()=>openCart(false));
 document.addEventListener("keydown",e=>{if(e.key==="Escape")openCart(false)});
 
-document.addEventListener("submit",e=>{
+document.addEventListener("submit",async e=>{
   if(e.target.id!=="order")return; e.preventDefault();
   if(clampCart()){save();renderCart();$("#err").textContent=t("stockErr");return}
   const f={n:$("#fn"),p:$("#fp"),c:$("#fc"),a:$("#fa")}, phone=f.p.value.replace(/[\s.\-]/g,"");
   const ok={n:f.n.value.trim().length>=3,p:/^(\+212|00212|0)[5-7]\d{8}$/.test(phone),c:!!f.c.value,a:f.a.value.trim().length>=8};
   for(const k in f)f[k].classList.toggle("bad",!ok[k]);
   if(!(ok.n&&ok.p&&ok.c&&ok.a)){$("#err").textContent=t("need");return}
-  const T0=totals();
-  const lines=Object.keys(cart).map(id=>{const p=P(id),q=cart[id];
+  const btn=e.target.querySelector(".send"); btn.disabled=true; $("#err").textContent="";
+  const lines0=Object.keys(cart).map(id=>{const p=P(id),q=cart[id];
     return `• ${p[lang]} × ${q} [${t(isWs(p,q)?"wsTag":"rtTag")}] ${money(unit(p,q))} ${t("unit")} = ${money(lineTotal(p,q))}`});
-  const msg=[t("waHi"),"",...lines,"",`${t("stype")}: ${t(T0.type)}`,`${t("sub2")}: ${money(T0.sub)}`,
+  let ord=null;
+  if(SYNC){ try{
+    const items=Object.keys(cart).map(id=>({id:Number(id),qty:cart[id]}));
+    const r=await sb("rpc/place_order",{method:"POST",body:JSON.stringify({p_name:f.n.value.trim(),p_phone:phone,p_city:f.c.value,p_address:f.a.value.trim(),p_items:items})});
+    const j=await r.json();
+    if(r.ok) ord=j;
+    else if(/out_of_stock|not_found/.test(JSON.stringify(j))){await loadData();clampCart();save();applyLang();$("#err").textContent=t("stockErr");btn.disabled=false;return}
+  }catch(_){} }
+  const T0=ord?{sub:ord.subtotal,saved:ord.savings,ship:ord.shipping,total:ord.total,type:{wholesale:"tws",retail:"trt",mixed:"tmix"}[ord.type]}:totals();
+  const msg=[t("waHi"),...(ord?[`${t("orderNo")}: #${ord.id}`]:SYNC?[t("unsaved")]:[]),"",...lines0,"",`${t("stype")}: ${t(T0.type)}`,`${t("sub2")}: ${money(T0.sub)}`,
    ...(T0.saved?[`${t("saved")}: ${money(T0.saved)}`]:[]),`${t("ship")}: ${T0.ship?money(T0.ship):t("free")}`,`*${t("total")}: ${money(T0.total)}*`,"",
    `${t("waC")}:`,`${t("waN")}: ${f.n.value.trim()}`,`${t("waP")}: ${phone}`,`${t("waCi")}: ${f.c.value}`,`${t("waA")}: ${f.a.value.trim()}`,"",t("pay")].join("\n");
-  window.open("https://wa.me/"+DB.settings.whatsapp+"?text="+encodeURIComponent(msg),"_blank");
+  const url="https://wa.me/"+DB.settings.whatsapp+"?text="+encodeURIComponent(msg);
+  const head=ord?`${t("savedOk")} (#${ord.id})`:(SYNC?t("unsaved"):"");
+  if(ord){cart={};save();renderCart();loadData().then(()=>renderGrid())}
+  $("#fform").innerHTML=`<p style="margin:6px 0 12px;font-weight:700">${esc(head)}</p><a class="send" style="display:block;text-align:center;text-decoration:none" href="${url}" target="_blank" rel="noopener">${t("openWa")}</a>`;
 });
 
-/* ===== التحميل: معاينة المدير ← products.json ← النسخة التجريبية ===== */
+/* ===== التحميل: Supabase إن وُجد، وإلا products.json ===== */
+const SB_URL="https://wrkuevqtrugzufpwsomr.supabase.co", SB_KEY="sb_publishable_ZBcufnBI-cLy14WZhKp4rQ_tyQNid-M";
+const SB_ON=SB_KEY.startsWith("sb_publishable_")||SB_KEY.startsWith("eyJ");
+let SYNC=false;
+const sb=(path,opt={})=>fetch(SB_URL+"/rest/v1/"+path,{...opt,headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json",...(opt.headers||{})}});
 function valid(d){return d&&d.settings&&Array.isArray(d.products)}
-async function init(){
-  try{
-    if(location.search.includes("preview=1")){const d=JSON.parse(localStorage.getItem("mm_admin_draft")||"null");if(valid(d)){DB=d;DB.settings.banner=Object.assign({ar:"",fr:""},DB.settings.banner);}}
-    else{const r=await fetch("products.json",{cache:"no-cache"});if(r.ok){const d=await r.json();if(valid(d))DB=d}}
-  }catch(e){}
-  clampCart(); save(); applyLang();
+async function loadData(){
+  if(SB_ON){ try{
+    const [a,b]=await Promise.all([sb("products?select=*&active=eq.true&order=id"),sb("settings?select=data&id=eq.1")]);
+    if(a.ok){ const prods=await a.json();
+      if(prods.length){ const st=b.ok?(await b.json())[0]:null;
+        DB={settings:Object.assign({},DEFAULTS.settings,st&&st.data),products:prods}; SYNC=true; return } }
+  }catch(e){} }
+  try{const r=await fetch("products.json",{cache:"no-cache"});if(r.ok){const d=await r.json();if(valid(d))DB=d}}catch(e){}
 }
+async function init(){ await loadData(); clampCart(); save(); applyLang(); }
 init();
 </script>
 </body>
