@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0f5c6e">
 <title>MCCOLIS MAROC</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MCCOLIS">
 <style>
 :root{--ink:#1c2630;--mut:#66727e;--bg:#faf7f1;--line:#e8e2d6;--teal:#0f5c6e;--teal2:#0b4553;--gold:#e9a31b;--wa:#1faa59;--red:#c2410c;--ws:#7c3aed}
 *{box-sizing:border-box;margin:0}
@@ -532,6 +537,7 @@ async function loadData(){
 }
 async function init(){ document.querySelectorAll(".x").forEach(b=>b.innerHTML=ic("error",28)); await loadData(); await loadReviews(); clampCart(); save(); applyLang(); route(); }
 init();
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script>
 </body>
 </html>
