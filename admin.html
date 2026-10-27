@@ -120,8 +120,8 @@ function formView(){
   $("#view").innerHTML=`<form class="card" id="pf" novalidate>
   <div class="f"><label>الاسم بالعربية</label><input id="ar" value="${v("ar")}"></div>
   <div class="f"><label>Nom en français</label><input id="fr" dir="ltr" value="${v("fr")}"></div>
-  <div class="f"><label>الوصف بالعربية</label><textarea id="dar" rows="2">${v("dar")}</textarea></div>
-  <div class="f"><label>Description en français</label><textarea id="dfr" rows="2" dir="ltr">${v("dfr")}</textarea></div>
+  <div class="f"><label>الوصف بالعربية (كيبان فصفحة المنتج، تقدر تكتب بزاف ديال الأسطر)</label><textarea id="dar" rows="7">${v("dar")}</textarea></div>
+  <div class="f"><label>Description en français (page produit)</label><textarea id="dfr" rows="7" dir="ltr">${v("dfr")}</textarea></div>
   <div class="f"><label>التصنيف</label><select id="cat">${Object.entries(CATS).map(([k,n])=>`<option value="${k}" ${p.cat===k?"selected":""}>${n}</option>`).join("")}</select></div>
   <div class="g2"><div class="f"><label>ثمن التجزئة (MAD)</label><input id="retail" type="number" min="0" step="0.01" inputmode="decimal" value="${p.old_price||p.retail}"></div>
   <div class="f"><label>ثمن الجملة (0 = بدون جملة)</label><input id="wholesale" type="number" min="0" step="0.01" inputmode="decimal" value="${p.wholesale||0}"></div>
@@ -136,6 +136,8 @@ function formView(){
   <div class="f"><label>إيموجي بديل للصورة</label><input id="e" value="${v("e")}"></div>
   <div class="f"><label>صور المنتج (حتى 6) <span id="cnt"></span></label><input id="file" type="file" accept="image/*" multiple>
   <div id="gal" style="margin-top:6px"></div></div>
+  <div class="f"><label>فيديو المنتج (اختياري)</label><input id="vurl" placeholder="الصق رابط YouTube أو رابط فيديو mp4" dir="ltr" value="${esc(p.video||"")}">
+  <input id="vfile" type="file" accept="video/*" style="margin-top:6px"><small>أو ارفع فيديو mp4 (حتى 20MB)، وغادي يتعمر الرابط أوتوماتيكياً.</small></div>
   <div class="err" id="err"></div><div class="acts"><button class="b" type="submit">حفظ</button><button type="button" class="b g" id="cancel">إلغاء</button></div></form>`;
   gal();
 }
@@ -202,6 +204,12 @@ document.addEventListener("click",async e=>{
       flash("تم الاستيراد.");prodView()}catch(er){flash("فشل الاستيراد: "+er.message,1)}}
 });
 document.addEventListener("change",async e=>{
+  if(e.target.id==="vfile"&&e.target.files[0]){
+    const f=e.target.files[0];
+    if(f.size>20*1024*1024){flash("الفيديو كبير (أكثر من 20MB).",1);e.target.value="";return}
+    try{flash("جاري رفع الفيديو...");$("#vurl").value=await uploadVideo(f);flash("تم رفع الفيديو. اضغط حفظ.")}catch(er){flash("فشل رفع الفيديو: "+er.message,1)}
+    e.target.value="";
+  }
   if(e.target.id==="file"&&e.target.files.length){
     const fs=[...e.target.files],room=MAXI-editing.imgs.length;
     if(room<=0){flash("الحد الأقصى 6 صور. احذف صورة أولاً.",1);e.target.value="";return}
@@ -221,7 +229,7 @@ document.addEventListener("submit",async e=>{
   }
   if(e.target.id==="pf"){
     const n=id=>Number($("#"+id).value),er=[];
-    const d={ar:$("#ar").value.trim(),fr:$("#fr").value.trim(),dar:$("#dar").value.trim(),dfr:$("#dfr").value.trim(),cat:$("#cat").value,retail:n("retail"),wholesale:n("wholesale"),min:n("min"),stock:n("stock"),offer:$("#offer").checked,hot:$("#hot").checked,active:$("#active").checked,e:$("#e").value.trim()||"📦",bg:editing.bg||"#ffffff",imgs:editing.imgs||[],img:(editing.imgs&&editing.imgs[0])||null};
+    const d={ar:$("#ar").value.trim(),fr:$("#fr").value.trim(),dar:$("#dar").value.trim(),dfr:$("#dfr").value.trim(),cat:$("#cat").value,retail:n("retail"),wholesale:n("wholesale"),min:n("min"),stock:n("stock"),offer:$("#offer").checked,hot:$("#hot").checked,active:$("#active").checked,e:$("#e").value.trim()||"📦",bg:editing.bg||"#ffffff",video:($("#vurl").value||"").trim()||null,imgs:editing.imgs||[],img:(editing.imgs&&editing.imgs[0])||null};
     const pc=n("disc"),oe=$("#oend").value;
     if(!(pc>=0&&pc<=90))er.push("نسبة التخفيض بين 0 و90.");
     else if(pc>0){if(oe&&new Date(oe)<=new Date())er.push("نهاية العرض لازم تكون فالمستقبل.");d.old_price=d.retail;d.retail=Math.round(d.retail*(1-pc/100)*100)/100;d.offer_end=oe?new Date(oe).toISOString():null;d.offer=true}

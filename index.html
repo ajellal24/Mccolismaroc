@@ -124,6 +124,16 @@ form input,form select,form textarea{width:100%;padding:10px 12px;border-radius:
 .avp button.on{border-color:#4f46e5;box-shadow:0 0 0 2px #c7d2fe}.avp img{width:100%;height:100%;object-fit:cover;object-position:top}
 .avp span{font-size:.8rem;color:#66727e}
 .rdone,.err{display:flex;align-items:center;gap:6px}
+[data-open]{cursor:pointer}
+.lp{position:fixed;top:56px;bottom:0;left:0;right:0;background:var(--bg);z-index:19;overflow:auto;display:none}.lp.on{display:block}
+.lp .in{max-width:640px;margin:auto;padding:12px 14px 90px}
+.lpb{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:6px 14px;font-weight:700;margin-bottom:10px}
+.lp .pic{border-radius:16px;overflow:hidden}
+.lp h1{font-size:1.3rem;color:#1e1b4b;margin:4px 0 2px}
+.lpd{white-space:pre-line;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;font-size:.96rem;line-height:1.8}
+.lph{font-weight:800;margin:18px 0 6px;font-size:1.02rem}
+.lpv iframe,.lpv video{width:100%;border:0;border-radius:14px;background:#000;display:block}.lpv iframe{aspect-ratio:16/9}.lpv video{max-height:75vh}
+.lpact{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}
 </style>
 </head>
 <body>
@@ -150,6 +160,7 @@ form input,form select,form textarea{width:100%;padding:10px 12px;border-radius:
 <a class="float" id="waFloat" href="#" target="_blank" rel="noopener">💬 WhatsApp</a>
 <div id="shade2" class="shade2" data-rvx></div>
 <aside class="rv" id="rv"><button class="x" data-rvx aria-label="close">✕</button><div id="rvBody"></div></aside>
+<section class="lp" id="lp"></section>
 <div id="toast"></div>
 <div class="shade" id="shade"></div>
 <aside class="drawer" id="drawer">
@@ -243,8 +254,8 @@ function card(p){
   const out=p.stock<=0, qn=out?1:Math.min(Math.max(cq[p.id]||1,1),p.stock); cq[p.id]=qn;
   const ws=isWs(p,qn);
   return `<article class="p" id="c${p.id}">
-   <div class="pic" style="background:${esc(p.bg||"#eee")}">${pics(p)}${p.hot?`<span class="hot">🔥 ${t("hot")}</span>`:""}${disc(p)?`<span class="tag d">-${pct(p)}%</span>`:p.offer?`<span class="tag">${t("offer")}</span>`:""}${out?`<div class="so">${t("out")}</div>`:""}</div>
-   <div class="info"><div class="sku">CMC${String(p.id).padStart(3,"0")}</div><div class="nm">${esc(p[lang])}</div>${ratingBtn(p)}<div><span class="chip">${CI[p.cat]||"📦"} ${t(p.cat)||""}</span></div><div class="ds">${esc(p[lang==="ar"?"dar":"dfr"])}</div>
+   <div class="pic" data-open="${p.id}" style="background:${esc(p.bg||"#eee")}">${pics(p)}${p.hot?`<span class="hot">🔥 ${t("hot")}</span>`:""}${disc(p)?`<span class="tag d">-${pct(p)}%</span>`:p.offer?`<span class="tag">${t("offer")}</span>`:""}${out?`<div class="so">${t("out")}</div>`:""}</div>
+   <div class="info"><div class="sku">CMC${String(p.id).padStart(3,"0")}</div><div class="nm" data-open="${p.id}">${esc(p[lang])}</div>${ratingBtn(p)}<div><span class="chip">${CI[p.cat]||"📦"} ${t(p.cat)||""}</span></div><div class="ds">${esc(p[lang==="ar"?"dar":"dfr"])}</div>
    <div class="price"><b>${money(p.retail)}</b>${disc(p)?`<s>${money(p.old_price)}</s>`:""}</div>
    ${disc(p)&&p.offer_end?`<div class="cd">${ic("clock",18)} ${t("ends")} <b data-end="${esc(p.offer_end)}">${cdText(p.offer_end)}</b></div>`:""}
    ${hasW(p)?`<div class="pl w"><span>${ic("handshake",16)} ${t("wholesale")} · ${t("from")} ${p.min} ${t("pcs")}</span><b>${money(p.wholesale)}</b></div>`:""}
@@ -301,11 +312,11 @@ function applyLang(){
   const b=DB.settings.banner&&DB.settings.banner[lang]; $("#ban").hidden=!b; $("#ban").innerHTML=b?ic("bell",26)+"<span>"+esc(b)+"</span>":"";
   
   $("#waFloat").href="https://wa.me/"+DB.settings.whatsapp+"?text="+encodeURIComponent(L.waGen);
-  renderCats(); renderGrid(); renderCart();
+  renderCats(); renderGrid(); renderCart(); if(lpId)showLp(lpId);
 }
 function toast(m){const e=$("#toast");e.textContent=m;e.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>e.style.display="none",1600)}
 function openCart(on){$("#drawer").classList.toggle("on",on);$("#shade").classList.toggle("on",on);document.body.style.overflow=on?"hidden":""}
-const redraw = id => { const el=$("#c"+id); if(el) el.outerHTML=card(P(id)); };
+const redraw = id => { const el=$("#c"+id); if(el) el.outerHTML=card(P(id)); if(lpId==id&&$("#lpAct"))$("#lpAct").innerHTML=lpAct(P(id)); };
 
 /* ===== الأحداث ===== */
 document.addEventListener("click",e=>{
@@ -406,6 +417,54 @@ setInterval(()=>{ let gone=false;
   if(gone&&!expiring){expiring=true; DB.products.forEach(normP);
     (async()=>{ try{await sb("rpc/expire_offers",{method:"POST",body:"{}"})}catch(_){} await loadData(); clampCart(); save(); renderGrid(); renderCart(); expiring=false })(); } },1000);
 
+/* ===== صفحة المنتج (Landing) ===== */
+Object.assign(T.ar,{back:"رجوع",descT:"وصف المنتج",vidT:"فيديو المنتج",share:"مشاركة رابط المنتج",copied:"تم نسخ رابط المنتج"});
+Object.assign(T.fr,{back:"Retour",descT:"Description du produit",vidT:"Vidéo du produit",share:"Partager le lien",copied:"Lien du produit copié"});
+let lpId=null, lpInternal=false;
+function videoHtml(u){ const m=u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([\w-]{11})/);
+  return m?`<iframe src="https://www.youtube-nocookie.com/embed/${m[1]}" allowfullscreen loading="lazy"></iframe>`:`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`; }
+function lpAct(p){
+  const out=p.stock<=0, qn=out?1:Math.min(Math.max(cq[p.id]||1,1),p.stock); cq[p.id]=qn; const ws=isWs(p,qn);
+  if(out) return `<div class="stk">${t("out")}</div>`;
+  return `<div class="row"><div class="qty"><button data-cq="${p.id}" data-d="-1" ${qn<=1?"disabled":""}>−</button><span>${qn}</span><button data-cq="${p.id}" data-d="1" ${qn>=p.stock?"disabled":""}>+</button></div>
+   ${hasW(p)&&p.min<=p.stock?`<button class="mini" data-cmin="${p.id}">${ic("add",14)} ${t("wsbtn")} (${p.min})</button>`:""}</div>
+   <div class="ct ${ws?"ws":""}"><span>${ws?t("wsOn"):t("rtOn")}</span><b>${money(lineTotal(p,qn))}</b></div>
+   <button class="add" data-add="${p.id}">🛒 ${t("add")}</button>
+   <button class="wab" data-wa="${p.id}">💬 WhatsApp</button>`;
+}
+function lpHtml(p){
+  const out=p.stock<=0, desc=(p[lang==="ar"?"dar":"dfr"]||"").trim();
+  return `<div class="in"><button class="lpb" data-lpx>${lang==="ar"?"→":"←"} ${t("back")}</button>
+   <div class="pic" style="background:${esc(p.bg||"#eee")}">${pics(p)}${p.hot?`<span class="hot">🔥 ${t("hot")}</span>`:""}${disc(p)?`<span class="tag d">-${pct(p)}%</span>`:p.offer?`<span class="tag">${t("offer")}</span>`:""}${out?`<div class="so">${t("out")}</div>`:""}</div>
+   <div class="sku" style="margin-top:10px">CMC${String(p.id).padStart(3,"0")}</div><h1>${esc(p[lang])}</h1>${ratingBtn(p)}
+   <div style="margin:8px 0"><span class="chip">${CI[p.cat]||"📦"} ${t(p.cat)||""}</span></div>
+   <div class="price"><b>${money(p.retail)}</b>${disc(p)?`<s>${money(p.old_price)}</s>`:""}</div>
+   ${disc(p)&&p.offer_end?`<div class="cd">${ic("clock",18)} ${t("ends")} <b data-end="${esc(p.offer_end)}">${cdText(p.offer_end)}</b></div>`:""}
+   ${hasW(p)?`<div class="pl w"><span>${ic("handshake",16)} ${t("wholesale")} · ${t("from")} ${p.min} ${t("pcs")}</span><b>${money(p.wholesale)}</b></div>`:""}
+   <div class="stk">${out?t("out"):t("stock")+": "+p.stock}</div>
+   <div class="lpact" id="lpAct">${lpAct(p)}</div>
+   ${desc?`<div class="lph">${t("descT")}</div><div class="lpd">${esc(desc)}</div>`:""}
+   ${p.video?`<div class="lph">${t("vidT")}</div><div class="lpv">${videoHtml(p.video)}</div>`:""}
+   <button class="lpb" data-share="${p.id}" style="margin-top:16px">🔗 ${t("share")}</button></div>`;
+}
+function showLp(id){ const p=P(id); if(!p){hideLp();return}
+  const keep=lpId==id?$("#lp").scrollTop:0; lpId=id; $("#lp").innerHTML=lpHtml(p); $("#lp").classList.add("on"); $("#lp").scrollTop=keep;
+  document.body.style.overflow="hidden"; document.title=p[lang]+" | MCCOLIS MAROC"; }
+function hideLp(){ lpId=null; const el=$("#lp"); el.classList.remove("on"); el.innerHTML=""; document.body.style.overflow=""; document.title="MCCOLIS MAROC"; }
+function openLp(id){ lpInternal=true; location.hash="p"+id; }
+function closeLp(){ if(lpInternal){lpInternal=false;history.back()} else {history.replaceState(null,"",location.pathname+location.search);hideLp()} }
+function route(){ const m=/^#p(\d+)$/.exec(location.hash); if(m&&P(m[1]))showLp(m[1]); else hideLp(); }
+window.addEventListener("hashchange",route);
+document.addEventListener("click",e=>{ const g=a=>e.target.closest("["+a+"]"); let x;
+  if(x=g("data-open"))openLp(x.dataset.open);
+  else if(g("data-lpx"))closeLp();
+  else if(x=g("data-share")){ const u=location.origin+location.pathname+"#p"+x.dataset.share, p=P(x.dataset.share);
+    if(navigator.share)navigator.share({title:p[lang],url:u}).catch(()=>{});
+    else if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast(t("copied")));
+    else prompt("",u); } });
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&lpId&&!$("#rv").classList.contains("on"))closeLp()});
+
+
 /* ===== التحميل: Supabase إن وُجد، وإلا products.json ===== */
 const SB_URL="https://wrkuevqtrugzufpwsomr.supabase.co", SB_KEY="sb_publishable_ZBcufnBI-cLy14WZhKp4rQ_tyQNid-M";
 const SB_ON=SB_KEY.startsWith("sb_publishable_")||SB_KEY.startsWith("eyJ");
@@ -421,7 +480,7 @@ async function loadData(){
   }catch(e){} }
   try{const r=await fetch("products.json",{cache:"no-cache"});if(r.ok){const d=await r.json();if(valid(d)){DB=d;DB.products.forEach(normP)}}}catch(e){}
 }
-async function init(){ document.querySelectorAll(".x").forEach(b=>b.innerHTML=ic("error",28)); await loadData(); await loadReviews(); clampCart(); save(); applyLang(); }
+async function init(){ document.querySelectorAll(".x").forEach(b=>b.innerHTML=ic("error",28)); await loadData(); await loadReviews(); clampCart(); save(); applyLang(); route(); }
 init();
 </script>
 </body>
