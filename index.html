@@ -134,6 +134,22 @@ form input,form select,form textarea{width:100%;padding:10px 12px;border-radius:
 .lph{font-weight:800;margin:18px 0 6px;font-size:1.02rem}
 .lpv iframe,.lpv video{width:100%;border:0;border-radius:14px;background:#000;display:block}.lpv iframe{aspect-ratio:16/9}.lpv video{max-height:75vh}
 .lpact{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.lp .sku{font-size:.8rem}.lp h1{font-size:1.35rem;line-height:1.5}
+.ths{display:flex;gap:8px;overflow-x:auto;margin-top:8px;padding-bottom:4px;scrollbar-width:none}.ths::-webkit-scrollbar{display:none}
+.ths button{flex:none;width:62px;height:62px;border:2px solid var(--line);border-radius:12px;padding:0;overflow:hidden;background:#fff}.ths img{width:100%;height:100%;object-fit:cover}
+.pbox{background:linear-gradient(135deg,#eef2ff,#fff);border:1px solid #dfe3ff;border-radius:14px;padding:12px 14px;margin:10px 0}
+.pbox .price b{font-size:1.8rem}.sv{background:#16a34a;color:#fff;border-radius:8px;padding:2px 8px;font-size:.78rem;font-weight:700}
+.urg{color:#c2410c;font-weight:800;font-size:.88rem;margin-top:4px}
+.trust{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.trust div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 4px;text-align:center;font-size:.72rem;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:6px}
+.wbox{display:flex;align-items:center;gap:12px;background:#f5f0ff;border:1px solid #e0d4ff;border-radius:14px;padding:10px 14px;margin:6px 0;color:#4c1d95}
+.feat{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}.feat li{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.93rem}.feat li .ic{flex:none;margin-top:2px}
+.steps{margin:0;padding-inline-start:22px;display:flex;flex-direction:column;gap:6px;font-size:.93rem}
+.sims{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sim{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:4px;font-size:.85rem}.sim .sp{aspect-ratio:1/1;border-radius:10px;overflow:hidden;display:grid;place-items:center}.sim .sp img{width:100%;height:100%;object-fit:cover}.sim span{color:#4f46e5;font-weight:800}
+.lpbar{position:sticky;bottom:0;display:flex;align-items:center;gap:10px;background:#fff;border-top:1px solid var(--line);padding:10px 14px;box-shadow:0 -4px 14px rgba(0,0,0,.08);max-width:none}
+.lpbar .pp{display:flex;flex-direction:column;line-height:1.2}.lpbar .pp b{font-size:1.15rem;color:#1e1b4b}.lpbar .pp small{color:var(--mut);font-size:.7rem}
+.lpbar .buy{flex:1;background:#4f46e5;color:#fff;border:0;border-radius:12px;padding:13px;font-weight:800;font-size:1rem;font-family:inherit;cursor:pointer}
+.lpbar .wa2{width:48px;height:48px;border:0;cursor:pointer;border-radius:12px;background:var(--wa);display:grid;place-items:center;text-decoration:none;font-size:1.4rem}
+.lp .in{padding-bottom:20px}
 </style>
 </head>
 <body>
@@ -242,14 +258,16 @@ function clampCart(){
 }
 
 /* ===== العرض ===== */
+function imgFb(el){ el.onerror=null; const n=(el.getAttribute("src")||"").split("/").pop(); el.src=SB_URL+"/storage/v1/object/public/product-images/"+n; }
+const imgTag = u => `<img src="${esc(u)}" alt="" loading="lazy"${/^https?:/.test(u)?"":' onerror="imgFb(this)"'}>`;
 const first = p => (p.imgs&&p.imgs[0])||p.img;
 const pics = p => { const l=(p.imgs&&p.imgs.length)?p.imgs:(p.img?[p.img]:[]);
   const n=l.length;
   if(n<2) return thumb(p);
   const v="";
-  return `<div class="sl">${l.map(u=>`<img src="${esc(u)}" alt="" loading="lazy">`).join("")}${v}</div><div class="dots">${Array.from({length:n},(_,k)=>`<i class="${k?"":"on"}"></i>`).join("")}</div>`; };
+  return `<div class="sl">${l.map(imgTag).join("")}${v}</div><div class="dots">${Array.from({length:n},(_,k)=>`<i class="${k?"":"on"}"></i>`).join("")}</div>`; };
 document.addEventListener("scroll",e=>{const s=e.target;if(!s.classList||!s.classList.contains("sl"))return;const n=Math.round(Math.abs(s.scrollLeft)/s.clientWidth);[...s.nextElementSibling.children].forEach((d,k)=>d.classList.toggle("on",k===n))},true);
-const thumb = p => first(p) ? `<img src="${esc(first(p))}" alt="" loading="lazy">` : (!p.e||p.e==="📦")?`<span aria-hidden="true">${ic("box",84)}</span>`:`<span aria-hidden="true">${esc(p.e)}</span>`;
+const thumb = p => first(p) ? imgTag(first(p)) : (!p.e||p.e==="📦")?`<span aria-hidden="true">${ic("box",84)}</span>`:`<span aria-hidden="true">${esc(p.e)}</span>`;
 function card(p){
   const out=p.stock<=0, qn=out?1:Math.min(Math.max(cq[p.id]||1,1),p.stock); cq[p.id]=qn;
   const ws=isWs(p,qn);
@@ -418,8 +436,8 @@ setInterval(()=>{ let gone=false;
     (async()=>{ try{await sb("rpc/expire_offers",{method:"POST",body:"{}"})}catch(_){} await loadData(); clampCart(); save(); renderGrid(); renderCart(); expiring=false })(); } },1000);
 
 /* ===== صفحة المنتج (Landing) ===== */
-Object.assign(T.ar,{back:"رجوع",descT:"وصف المنتج",vidT:"فيديو المنتج",share:"مشاركة رابط المنتج",copied:"تم نسخ رابط المنتج"});
-Object.assign(T.fr,{back:"Retour",descT:"Description du produit",vidT:"Vidéo du produit",share:"Partager le lien",copied:"Lien du produit copié"});
+Object.assign(T.ar,{saveT:"وفّر",onlyL:"باقي فقط",tr1:"توصيل لجميع مدن المغرب",tr2:"الدفع عند الاستلام",tr3:"دعم عبر WhatsApp",featT:"المميزات",howT:"كيفاش تطلب؟",st1:"اختار الكمية وأضف المنتج للسلة",st2:"عمّر الاسم والهاتف والمدينة والعنوان",st3:"توصلك الطلبية وتخلص عند الاستلام",revT:"آراء الزبناء",simT:"منتجات مشابهة",buyNow:"اطلب الآن",back:"رجوع",descT:"وصف المنتج",vidT:"فيديو المنتج",share:"مشاركة رابط المنتج",copied:"تم نسخ رابط المنتج"});
+Object.assign(T.fr,{saveT:"Économisez",onlyL:"Plus que",tr1:"Livraison partout au Maroc",tr2:"Paiement à la livraison",tr3:"Support WhatsApp",featT:"Points forts",howT:"Comment commander ?",st1:"Choisissez la quantité et ajoutez au panier",st2:"Remplissez nom, téléphone, ville et adresse",st3:"Recevez votre commande et payez à la livraison",revT:"Avis des clients",simT:"Produits similaires",buyNow:"Commander",back:"Retour",descT:"Description du produit",vidT:"Vidéo du produit",share:"Partager le lien",copied:"Lien du produit copié"});
 let lpId=null, lpInternal=false;
 function videoHtml(u){ const m=u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([\w-]{11})/);
   return m?`<iframe src="https://www.youtube-nocookie.com/embed/${m[1]}" allowfullscreen loading="lazy"></iframe>`:`<video src="${esc(u)}" controls playsinline preload="metadata"></video>`; }
@@ -432,20 +450,36 @@ function lpAct(p){
    <button class="add" data-add="${p.id}">🛒 ${t("add")}</button>
    <button class="wab" data-wa="${p.id}">💬 WhatsApp</button>`;
 }
+function lpFeatures(txt){ const L=txt.split(/\r?\n/).map(s=>s.trim()).filter(Boolean), f=[], r=[];
+  L.forEach(l=>{ const m=l.match(/^[-•*✔✅✓]\s*(.+)$/); m?f.push(m[1]):r.push(l) }); return {f,r:r.join("\n")}; }
+function lpReviews(id){ const l=REV.filter(r=>r.product_id==id).slice(0,5);
+  return l.map(r=>`<div class="rc"><div class="av">${r.avatar==="m"?`<img src="${IC.avatar_male}" alt="">`:r.avatar==="f"?`<img src="${IC.avatar_female}" alt="">`:esc((r.name||"?").trim().charAt(0).toUpperCase())}</div><div class="bd"><div><b>${esc(r.name)}</b> <span class="st">${stars(r.rating)}</span></div>${r.comment?`<p>${esc(r.comment)}</p>`:""}</div></div>`).join(""); }
 function lpHtml(p){
-  const out=p.stock<=0, desc=(p[lang==="ar"?"dar":"dfr"]||"").trim();
+  const out=p.stock<=0, desc=(p[lang==="ar"?"dar":"dfr"]||"").trim(), ft=lpFeatures(desc), s=stat(p.id);
+  const imgs=(p.imgs&&p.imgs.length)?p.imgs:(p.img?[p.img]:[]);
+  const sim=DB.products.filter(x=>x.id!=p.id&&x.cat===p.cat&&x.active!==false&&x.stock>0).slice(0,4);
+  const save=hasW(p)?Math.round(p.retail-p.wholesale):0;
   return `<div class="in"><button class="lpb" data-lpx>${lang==="ar"?"→":"←"} ${t("back")}</button>
    <div class="pic" style="background:${esc(p.bg||"#eee")}">${pics(p)}${p.hot?`<span class="hot">🔥 ${t("hot")}</span>`:""}${disc(p)?`<span class="tag d">-${pct(p)}%</span>`:p.offer?`<span class="tag">${t("offer")}</span>`:""}${out?`<div class="so">${t("out")}</div>`:""}</div>
-   <div class="sku" style="margin-top:10px">CMC${String(p.id).padStart(3,"0")}</div><h1>${esc(p[lang])}</h1>${ratingBtn(p)}
-   <div style="margin:8px 0"><span class="chip">${CI[p.cat]||"📦"} ${t(p.cat)||""}</span></div>
-   <div class="price"><b>${money(p.retail)}</b>${disc(p)?`<s>${money(p.old_price)}</s>`:""}</div>
-   ${disc(p)&&p.offer_end?`<div class="cd">${ic("clock",18)} ${t("ends")} <b data-end="${esc(p.offer_end)}">${cdText(p.offer_end)}</b></div>`:""}
-   ${hasW(p)?`<div class="pl w"><span>${ic("handshake",16)} ${t("wholesale")} · ${t("from")} ${p.min} ${t("pcs")}</span><b>${money(p.wholesale)}</b></div>`:""}
-   <div class="stk">${out?t("out"):t("stock")+": "+p.stock}</div>
+   ${imgs.length>1?`<div class="ths">${imgs.map((u,k)=>`<button data-th="${k}">${imgTag(u)}</button>`).join("")}</div>`:""}
+   <div class="sku" style="margin-top:12px">CMC${String(p.id).padStart(3,"0")} · <span class="chip">${CI[p.cat]||"📦"} ${t(p.cat)||""}</span></div>
+   <h1>${esc(p[lang])}</h1>${ratingBtn(p)}
+   <div class="pbox"><div class="price"><b>${money(p.retail)}</b>${disc(p)?`<s>${money(p.old_price)}</s><span class="sv">${t("saveT")} ${money(p.old_price-p.retail)}</span>`:""}</div>
+    ${disc(p)&&p.offer_end?`<div class="cd">${ic("clock",18)} ${t("ends")} <b data-end="${esc(p.offer_end)}">${cdText(p.offer_end)}</b></div>`:""}
+    ${!out&&p.stock<=10?`<div class="urg">🔥 ${t("onlyL")} ${p.stock} ${t("pcs")}</div>`:""}</div>
+   <div class="trust"><div>${ic("delivery",30)}<span>${t("tr1")}</span></div><div>${ic("check",30)}<span>${t("tr2")}</span></div><div>${ic("chat_people",30)}<span>${t("tr3")}</span></div></div>
+   ${hasW(p)?`<div class="wbox">${ic("handshake",34)}<div><b>${t("wholesale")}: ${money(p.wholesale)} / ${t("pcs")}</b><br><small>${t("from")} ${p.min} ${t("pcs")}${save>0?" · "+t("saveT")+" "+money(save)+" / "+t("pcs"):""}</small></div></div>`:""}
    <div class="lpact" id="lpAct">${lpAct(p)}</div>
-   ${desc?`<div class="lph">${t("descT")}</div><div class="lpd">${esc(desc)}</div>`:""}
+   ${ft.f.length?`<div class="lph">${t("featT")}</div><ul class="feat">${ft.f.map(x=>`<li>${ic("check",20)}<span>${esc(x)}</span></li>`).join("")}</ul>`:""}
+   ${ft.r?`<div class="lph">${t("descT")}</div><div class="lpd">${esc(ft.r)}</div>`:""}
    ${p.video?`<div class="lph">${t("vidT")}</div><div class="lpv">${videoHtml(p.video)}</div>`:""}
-   <button class="lpb" data-share="${p.id}" style="margin-top:16px">🔗 ${t("share")}</button></div>`;
+   <div class="lph">${t("howT")}</div><ol class="steps"><li>${t("st1")}</li><li>${t("st2")}</li><li>${t("st3")}</li></ol>
+   <div class="lph">${ic("chat_people",22)} ${t("revT")}</div>
+   <div class="rsum">${s.n?`<span class="st big">${stars(s.avg)}</span> <b>${s.avg.toFixed(1)}</b> / 5 · ${s.n}`:t("noRev")}</div>${lpReviews(p.id)}
+   <button class="lpb" data-rev="${p.id}" style="margin-top:8px">⭐ ${t("rate")}</button>
+   ${sim.length?`<div class="lph">${t("simT")}</div><div class="sims">${sim.map(x=>`<div class="sim" data-open="${x.id}"><div class="sp" style="background:${esc(x.bg||"#eee")}">${thumb(x)}</div><b>${esc(x[lang])}</b><span>${money(x.retail)}</span></div>`).join("")}</div>`:""}
+   <button class="lpb" data-share="${p.id}" style="margin-top:16px">🔗 ${t("share")}</button></div>
+   ${out?"":`<div class="lpbar"><div class="pp"><small>${t("retail")}</small><b>${money(p.retail)}</b></div><button class="buy" data-buy="${p.id}">🛒 ${t("buyNow")}</button><button class="wa2" data-wa="${p.id}" aria-label="WhatsApp">💬</button></div>`}`;
 }
 function showLp(id){ const p=P(id); if(!p){hideLp();return}
   const keep=lpId==id?$("#lp").scrollTop:0; lpId=id; $("#lp").innerHTML=lpHtml(p); $("#lp").classList.add("on"); $("#lp").scrollTop=keep;
@@ -458,6 +492,8 @@ window.addEventListener("hashchange",route);
 document.addEventListener("click",e=>{ const g=a=>e.target.closest("["+a+"]"); let x;
   if(x=g("data-open"))openLp(x.dataset.open);
   else if(g("data-lpx"))closeLp();
+  else if(x=g("data-th")){ const sl=document.querySelector("#lp .sl"); if(sl&&sl.children[+x.dataset.th])sl.children[+x.dataset.th].scrollIntoView({behavior:"smooth",inline:"start",block:"nearest"}) }
+  else if(g("data-buy")){ const b=document.querySelector("#lpAct [data-add]"); if(b)b.click(); openCart(true) }
   else if(x=g("data-share")){ const u=location.origin+location.pathname+"#p"+x.dataset.share, p=P(x.dataset.share);
     if(navigator.share)navigator.share({title:p[lang],url:u}).catch(()=>{});
     else if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast(t("copied")));
