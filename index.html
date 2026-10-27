@@ -221,9 +221,9 @@ function clampCart(){
 /* ===== العرض ===== */
 const first = p => (p.imgs&&p.imgs[0])||p.img;
 const pics = p => { const l=(p.imgs&&p.imgs.length)?p.imgs:(p.img?[p.img]:[]);
-  const n=l.length+(p.video?1:0);
+  const n=l.length;
   if(n<2) return thumb(p);
-  const v=p.video?`<video src="${esc(p.video)}" controls playsinline preload="metadata"></video>`:"";
+  const v="";
   return `<div class="sl">${l.map(u=>`<img src="${esc(u)}" alt="" loading="lazy">`).join("")}${v}</div><div class="dots">${Array.from({length:n},(_,k)=>`<i class="${k?"":"on"}"></i>`).join("")}</div>`; };
 document.addEventListener("scroll",e=>{const s=e.target;if(!s.classList||!s.classList.contains("sl"))return;const n=Math.round(Math.abs(s.scrollLeft)/s.clientWidth);[...s.nextElementSibling.children].forEach((d,k)=>d.classList.toggle("on",k===n))},true);
 const thumb = p => first(p) ? `<img src="${esc(first(p))}" alt="" loading="lazy">` : `<span aria-hidden="true">${esc(p.e||"📦")}</span>`;
@@ -287,7 +287,7 @@ function applyLang(){
   $("#lang").textContent=L.lang; $("#cartL").textContent=L.cart; $("#h1").textContent=L.h1; $("#sub").textContent=L.sub;
   $("#q").placeholder=L.search; $("#foot").textContent=L.foot; $("#cartT").textContent=L.cartT;
   const b=DB.settings.banner&&DB.settings.banner[lang]; $("#ban").hidden=!b; $("#ban").textContent=b||"";
-  $("#demo").hidden=!DB.settings.demo; $("#demo").textContent=L.demo;
+  $("#demo").hidden=!DB.settings.demo||SYNC; $("#demo").textContent=L.demo;
   $("#waFloat").href="https://wa.me/"+DB.settings.whatsapp+"?text="+encodeURIComponent(L.waGen);
   renderCats(); renderGrid(); renderCart();
 }
