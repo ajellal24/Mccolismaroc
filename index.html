@@ -401,42 +401,72 @@ const C39={"0":"nnnwwnwnn","1":"wnnwnnnnw","2":"nnwwnnnnw","3":"wnwwnnnnn","4":"
 function code39(c,txt,x,y,w,h){const s="*"+txt+"*";const unit=w/(s.length*16-1);let cx=x;c.fillStyle="#000";
   for(const ch of s){const p=C39[ch];if(!p)continue;for(let i=0;i<9;i++){const bw=(p[i]==="w"?3:1)*unit;if(i%2===0)c.fillRect(cx,y,bw,h);cx+=bw}cx+=unit}}
 function makeLabel(o){
-  const ar=lang==="ar",W=900,pad=30,H=760+o.items.length*58;
+  const ar=lang==="ar",W=900,pad=30,H=1300+o.items.length*60;
   const cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
   const F='Tahoma,"Segoe UI",Arial,sans-serif',tx=(s,x,y,font,al,col)=>{c.font=font+" "+F;c.textAlign=al;c.fillStyle=col||"#1c1209";c.fillText(s,x,y)};
-  const L=ar?{ord:"رقم الطلب",to:"المستلم",from:"المرسل",cod:"الدفع عند الاستلام",amt:"المبلغ المطلوب",item:"المنتج",q:"الكمية",p:"المبلغ",ship:"التوصيل",ph:"الهاتف",city:"المدينة",thx:"شكراً لثقتكم بـ MCCOLIS MAROC"}
-            :{ord:"N° commande",to:"Destinataire",from:"Expéditeur",cod:"Paiement à la livraison",amt:"Montant à payer",item:"Produit",q:"Qté",p:"Prix",ship:"Livraison",ph:"Tél",city:"Ville",thx:"Merci de votre confiance - MCCOLIS MAROC"};
+  const L=ar?{ship:"بطاقة الشحن",info:"معلومات الطلب",date:"التاريخ",ord:"رقم الطلب",qty:"الكمية",cod:"الدفع عند الاستلام",from:"من",to:"إلى",acc:"الحساب",ph:"الهاتف",city:"المدينة",no:"رقم",item:"المنتج",q:"الكمية",p:"المبلغ",shp:"التوصيل",amt:"المبلغ المطلوب",thx:"شكراً لثقتكم بـ MCCOLIS MAROC"}
+            :{ship:"Étiquette d'expédition",info:"INFORMATIONS COMMANDE",date:"Date",ord:"N° commande",qty:"Articles",cod:"Paiement à la livraison",from:"DE",to:"À",acc:"COMPTE",ph:"Tél",city:"VILLE",no:"N°",item:"Produit",q:"Qté",p:"Prix",shp:"Livraison",amt:"Montant à payer",thx:"Merci de votre confiance - MCCOLIS MAROC"};
+  const ax=ar?W-pad:pad,al=ar?"right":"left",ex=ar?pad:W-pad,eal=ar?"left":"right";
+  const rule=(y,w,dash)=>{c.strokeStyle="#000";c.lineWidth=w||2;c.setLineDash(dash||[]);c.beginPath();c.moveTo(pad,y);c.lineTo(W-pad,y);c.stroke();c.setLineDash([])};
+  const barX=ar?pad:W-pad-390;
   c.direction="ltr";c.fillStyle="#fff";c.fillRect(0,0,W,H);
-  c.fillStyle="#a05423";c.fillRect(0,0,W,110);
-  tx("MCCOLIS",pad,70,"bold 52px","left","#fff");const mw=c.measureText("MCCOLIS ").width;tx("MAROC",pad+mw,70,"bold 52px","left","#fff001");
-  tx(L.cod,W-pad,70,"bold 30px","right","#fff");
-  c.strokeStyle="#000";c.lineWidth=4;c.strokeRect(2,2,W-4,H-4);
-  let y=140;
-  c.lineWidth=3;c.strokeRect(pad,y,W-2*pad,60);tx(L.ord+": #"+o.id,W/2,y+42,"bold 34px","center");y+=90;
-  code39(c,o.code,pad+40,y,W-2*pad-80,120);y+=145;tx(o.code,W/2,y,"26px","center");y+=30;
-  c.setLineDash([4,4]);c.beginPath();c.moveTo(pad,y);c.lineTo(W-pad,y);c.stroke();c.setLineDash([]);y+=44;
-  c.direction=ar?"rtl":"ltr";const al=ar?"right":"left",ax=ar?W-pad:pad;
-  tx(L.to+": "+o.name,ax,y,"bold 32px",al);y+=44;
-  tx(L.ph+": "+o.phone,ax,y,"28px",al);y+=40;
-  tx(L.city+": "+o.city,ax,y,"28px",al);y+=40;
-  c.font="26px "+F;let line="";for(const w of o.addr.split(/\s+/)){const t2=line?line+" "+w:w;if(c.measureText(t2).width>W-2*pad&&line){tx(line,ax,y,"26px",al);y+=36;line=w}else line=t2}
+  // top line
+  tx(o.date,pad,28,"16px","left","#555");tx(L.ship,W-pad,28,"16px","right","#555");
+  // header: brand + barcode
+  c.direction="ltr";
+  tx("MCCOLIS",ax,100,"bold 54px",al,"#a05423");
+  const mw=(c.font="bold 54px "+F,c.measureText("MCCOLIS ").width);
+  tx("MAROC",ar?ax-mw:ax+mw,100,"bold 54px",al,"#d6a400");
+  tx(L.cod,ax,140,"bold 24px",al,"#7d3f15");
+  code39(c,o.code,barX,50,390,100);tx(o.code,barX+195,185,"22px","center");
+  // order info
+  c.direction=ar?"rtl":"ltr";
+  let y=240;
+  tx(L.info,ax,y,"bold 26px",al);y+=40;
+  const row=(k,v)=>{tx(k+":",ax,y,"bold 24px",al);tx(v,ex,y,"24px",eal);y+=38};
+  row(L.date,o.date);row(L.ord,"#"+o.id);row(L.qty,String(o.items.reduce((s,i)=>s+i.qty,0)));row(L.amt,o.total);
+  y+=8;rule(y,2);y+=44;
+  // FROM + account barcode
+  tx(L.from+":",ax,y,"bold 26px",al);
+  c.direction="ltr";tx(L.acc+" : MC"+String(o.wa||"").replace(/\D/g,"").slice(-6),ex,y,"26px",eal);
+  c.direction=ar?"rtl":"ltr";y+=40;
+  tx("MCCOLIS MAROC",ax,y,"24px",al);y+=34;
+  tx(L.ph+": "+(o.wa||""),ax,y,"22px",al,"#555");y+=30;
+  code39(c,o.code,barX,y-80,390,70);
+  y+=40;rule(y,2);y+=44;
+  // TO
+  const toTop=y;
+  tx(L.to+":",ax,y,"bold 26px",al);y+=44;
+  tx(o.name,ax,y,"bold 34px",al);y+=42;
+  c.font="26px "+F;let line="";const maxW=W-2*pad-300;
+  for(const w of o.addr.split(/\s+/)){const t2=line?line+" "+w:w;if(c.measureText(t2).width>maxW&&line){tx(line,ax,y,"26px",al);y+=36;line=w}else line=t2}
   if(line){tx(line,ax,y,"26px",al);y+=36}
-  y+=6;tx(L.from+": MCCOLIS MAROC · "+o.wa,ax,y,"24px",al,"#555");y+=34;
-  c.strokeStyle="#000";c.lineWidth=3;c.beginPath();c.moveTo(pad,y);c.lineTo(W-pad,y);c.stroke();y+=40;
-  const ex=ar?pad:W-pad,eal=ar?"left":"right";
-  tx(L.item,ax,y,"bold 26px",al);tx(L.p,ex,y,"bold 26px",eal);tx(L.q,W/2,y,"bold 26px","center");y+=14;
-  c.lineWidth=1;c.beginPath();c.moveTo(pad,y);c.lineTo(W-pad,y);c.stroke();y+=36;
-  for(const it of o.items){c.font="26px "+F;let nm=it.name;while(c.measureText(nm).width>W*0.5&&nm.length>4)nm=nm.slice(0,-2);if(nm!==it.name)nm+="…";
-    tx(nm,ax,y,"26px",al);tx(String(it.qty),W/2,y,"26px","center");tx(it.total,ex,y,"26px",eal);y+=46}
-  y+=6;tx(L.ship+": "+o.ship,ax,y,"26px",al);y+=44;
+  tx(L.ph+": "+o.phone,ax,y,"28px",al);y+=44;
+  // city block (replaces postcode)
+  const cx=ar?pad:W-pad-270;
+  c.strokeStyle="#000";c.lineWidth=3;c.strokeRect(cx,toTop-10,270,Math.max(150,y-toTop-10));
+  tx(L.city,cx+135,toTop+28,"bold 22px","center","#555");
+  let cs=64;c.font="bold "+cs+"px "+F;while(c.measureText(o.city).width>240&&cs>22){cs-=4;c.font="bold "+cs+"px "+F}
+  tx(o.city,cx+135,toTop+95,"bold "+cs+"px","center");
+  y=Math.max(y,toTop+150);rule(y,2);y+=24;
+  // item list
+  const top=y;y+=40;
+  const nx=ax,qx=ar?W-pad-90:pad+90,ix=ar?W-pad-180:pad+180;
+  tx(L.no,nx,y,"bold 24px",al);tx(L.q,qx,y,"bold 24px",al);tx(L.item,ix,y,"bold 24px",al);tx(L.p,ex,y,"bold 24px",eal);y+=12;
+  rule(y,1,[3,3]);y+=36;
+  o.items.forEach((it,i)=>{c.font="24px "+F;let nm=it.name;const lim=W-2*pad-420;while(c.measureText(nm).width>lim&&nm.length>4)nm=nm.slice(0,-2);if(nm!==it.name)nm+="…";
+    tx(String(i+1),nx,y,"24px",al);tx(String(it.qty),qx,y,"24px",al);tx(nm,ix,y,"24px",al);tx(it.total,ex,y,"24px",eal);y+=46});
+  y+=4;tx(L.shp+": "+o.ship,ex,y,"24px",eal);y+=40;
+  c.strokeStyle="#000";c.lineWidth=3;c.strokeRect(pad,top,W-2*pad,y-top);
+  y+=30;
   c.fillStyle="#fee6b6";c.fillRect(pad,y-34,W-2*pad,70);c.strokeStyle="#a05423";c.lineWidth=3;c.strokeRect(pad,y-34,W-2*pad,70);
-  tx(L.amt+": "+o.total,W/2,y+12,"bold 36px","center","#7d3f15");y+=80;
-  c.direction="ltr";tx(L.thx,W/2,y,"22px","center","#555");
+  tx(L.amt+": "+o.total,W/2,y+12,"bold 36px","center","#7d3f15");y+=84;
+  c.direction="ltr";tx(L.thx,W/2,y,"20px","center","#555");
   const out=document.createElement("canvas");out.width=W;out.height=Math.min(H,y+30);out.getContext("2d").drawImage(cv,0,0);
   const oc=out.getContext("2d");oc.strokeStyle="#000";oc.lineWidth=4;oc.strokeRect(2,2,W-4,out.height-4);
   return out}
 function labelData(ord,f,phone,T0){const id=ord?ord.id:Date.now().toString().slice(-6);
-  return {id,code:"MC"+String(id).replace(/[^0-9A-Za-z]/g,"").toUpperCase(),name:f.n.value.trim(),phone,city:f.c.value,addr:f.a.value.trim(),wa:DB.settings.whatsapp,
+  return {date:new Date().toLocaleDateString("fr-FR"),id,code:"MC"+String(id).replace(/[^0-9A-Za-z]/g,"").toUpperCase(),name:f.n.value.trim(),phone,city:f.c.value,addr:f.a.value.trim(),wa:DB.settings.whatsapp,
    items:Object.keys(cart).map(k=>{const p=P(k),q=cart[k];return {name:p[lang],qty:q,total:money(lineTotal(p,q))}}),
    ship:T0.ship?money(T0.ship):t("free"),total:money(T0.total)}}
 async function shareLabel(cv,id){const blob=await new Promise(r=>cv.toBlob(r,"image/png"));const file=new File([blob],"commande-"+id+".png",{type:"image/png"});
