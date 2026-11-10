@@ -32,6 +32,7 @@ input[type=checkbox]{width:auto}.f{margin-bottom:8px}
 .it{font-size:.88rem;border-top:1px dashed #e8e2d6;padding:3px 0;display:flex;justify-content:space-between;gap:8px}
 .warn{background:#fff3d6;border:1px solid #f0d58a;border-radius:10px;padding:10px 12px;margin:12px 0;font-size:.86rem}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <header><div class="wrap"><h1>MCCOLIS MAROC — الإدارة</h1><button class="b g" id="logout" hidden>خروج</button></div></header>
@@ -109,10 +110,77 @@ async function prodView(){
   try{await api("/rest/v1/rpc/expire_offers",{method:"POST",body:"{}"})}catch(e){}
   const r=await api("/rest/v1/products?select=*&order=id"); if(!r.ok)return $("#view").textContent=await errTxt(r);
   PR=await r.json();
-  $("#view").innerHTML=`<div class="acts" style="margin:0 0 10px"><button class="b" data-new>＋ إضافة منتج</button>${PR.length?"":`<button class="b g" id="imp">استيراد المنتجات التجريبية (products.json)</button>`}</div>`+
+  $("#view").innerHTML=`<div class="acts" style="margin:0 0 10px"><button class="b" data-new>＋ إضافة منتج</button><button class="b g" data-import>استيراد Excel</button>${PR.length?"":`<button class="b g" id="imp">استيراد المنتجات التجريبية (products.json)</button>`}</div>`+
   PR.map(p=>`<div class="card"><div class="pr"><div class="th">${th(p)}</div><div class="t"><b>${esc(p.ar)}</b>
    <small>${CATS[p.cat]||""} · تجزئة ${p.retail} · جملة ${p.wholesale||"—"} (من ${p.min}) · مخزون ${p.stock}${p.old_price?` · 🔥 تخفيض ${Math.round((1-p.retail/p.old_price)*100)}%${p.offer_end?" حتى "+new Date(p.offer_end).toLocaleString("ar-MA-u-nu-latn"):""}`:(p.offer?" · عرض":"")}${p.active?"":" · مخفي"}</small></div></div>
    <div class="acts"><button class="b" data-edit="${p.id}">تعديل</button><button class="b r" data-del="${p.id}">حذف</button></div></div>`).join("");
+}
+let IMPORT_ROWS=[];
+const IMPORT_FIELDS=["ar","fr","dar","dfr","cat","retail","wholesale","min","stock","img","offer","hot","active","old_price","offer_end","video","e"];
+const HEADER_ALIASES={
+  "الاسم بالعربية":"ar","اسم المنتج":"ar","name":"ar","product":"ar","ar":"ar",
+  "الاسم بالفرنسية":"fr","nom":"fr","french":"fr","fr":"fr",
+  "الوصف بالعربية":"dar","description":"dar","dar":"dar",
+  "الوصف بالفرنسية":"dfr","description fr":"dfr","dfr":"dfr",
+  "التصنيف":"cat","الفئة":"cat","category":"cat","cat":"cat",
+  "ثمن التجزئة":"retail","الثمن":"retail","price":"retail","retail":"retail",
+  "ثمن الجملة":"wholesale","wholesale":"wholesale",
+  "أقل كمية للجملة":"min","الكمية الدنيا":"min","minimum":"min","min":"min",
+  "المخزون":"stock","الكمية":"stock","stock":"stock",
+  "رابط الصورة":"img","الصورة":"img","image":"img","img":"img",
+  "عرض":"offer","offer":"offer","hot":"hot","الأكثر مبيعا":"hot",
+  "ظاهر":"active","active":"active","old price":"old_price","الثمن القديم":"old_price",
+  "نهاية العرض":"offer_end","offer end":"offer_end","video":"video","الفيديو":"video","e":"e"
+};
+function normHeader(x){return String(x??"").trim().toLowerCase().replace(/[\s_]+/g," ")}
+function truthy(v,def=false){if(v==null||v==="")return def;return ["1","true","yes","نعم","نعمّ","on"].includes(String(v).trim().toLowerCase())}
+function catKey(v){const z=String(v||"home").trim().toLowerCase();const m={"المنزل":"home","الدار":"home","home":"home","المطبخ":"kitchen","kitchen":"kitchen","العطور":"perf","عطور":"perf","perf":"perf","perfume":"perf","الإلكترونيات":"elec","الكترونيات":"elec","elec":"elec","accessories":"acc","الإكسسوارات":"acc","اكسسوارات":"acc","acc":"acc"};return m[z]||z}
+function excelDate(v){if(typeof v==="number"&&window.XLSX){const d=XLSX.SSF.parse_date_code(v);if(d)return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}T${String(d.H||0).padStart(2,"0")}:${String(d.M||0).padStart(2,"0")}`}return v?String(v).trim():null}
+function importView(){
+  IMPORT_ROWS=[];
+  $("#view").innerHTML=`<div class="card"><b>استيراد المنتجات من Excel</b><p style="font-size:.88rem;margin:6px 0">اختار ملف Excel بصيغة XLSX أو XLS أو CSV. غادي نعرضو المنتجات ونراجعو الأخطاء قبل الحفظ.</p>
+  <div class="acts"><button type="button" class="b g" id="template">تحميل نموذج Excel (CSV)</button><button type="button" class="b g" id="backprod">رجوع للمنتجات</button></div>
+  <div class="f" style="margin-top:12px"><label>ملف المنتجات</label><input id="importfile" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></div>
+  <div id="importstatus" class="ok"></div><div id="importpreview"></div><div class="acts"><button type="button" class="b w" id="doimport" disabled>حفظ المنتجات في المتجر</button></div>
+  <small style="margin-top:8px">ملاحظة: الصور خاصها تكون روابط HTTPS مباشرة ومتاحة للعموم. المنتجات المستوردة غادي تكون ظاهرة في المتجر تلقائياً. لا تضع عمود ID؛ قاعدة البيانات كتولد المعرف.</small></div>`;
+}
+function csvTemplate(){
+ const headers=["ar","fr","dar","dfr","cat","retail","wholesale","min","stock","img","offer","hot","active","old_price","offer_end","video","e"];
+ const csv="\ufeff"+headers.map(v=>'"'+v+'"').join(",");
+ const a=document.createElement("a"),u=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.href=u;a.download="mccolis-products-template.csv";a.click();URL.revokeObjectURL(u);
+}
+async function readImportFile(file){
+ if(!window.XLSX)throw new Error("تعذر تحميل قارئ Excel. تأكد من الإنترنت ثم أعد فتح لوحة الإدارة.");
+ const buf=await file.arrayBuffer(),wb=XLSX.read(buf,{type:"array",cellDates:true});
+ const ws=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:true});
+ if(raw.length<2)throw new Error("الملف فارغ أو لا يحتوي على صفوف منتجات.");
+ const map=raw[0].map(h=>HEADER_ALIASES[normHeader(h)]||normHeader(h));
+ const rows=[];
+ raw.slice(1).forEach((cells,i)=>{
+   if(!cells.some(v=>String(v??"").trim()))return;
+   const src={};map.forEach((k,j)=>{if(k)src[k]=cells[j]??""});
+   const n=k=>Number(src[k]=== ""||src[k]==null?0:src[k]);
+   const d={ar:String(src.ar||"").trim(),fr:String(src.fr||src.ar||"").trim(),dar:String(src.dar||"").trim(),dfr:String(src.dfr||"").trim(),cat:catKey(src.cat),retail:n("retail"),wholesale:n("wholesale"),min:src.min===""?6:n("min"),stock:src.stock===""?0:n("stock"),img:String(src.img||"").trim()||null,imgs:[],bg:"#ffffff",offer:truthy(src.offer),hot:truthy(src.hot),active:truthy(src.active,true),old_price:src.old_price===""?null:n("old_price")||null,offer_end:excelDate(src.offer_end),video:String(src.video||"").trim()||null,e:String(src.e||"").trim()||"📦"};
+   if(d.old_price&&d.old_price<=d.retail)d.old_price=null;
+   if(d.offer_end&&!/^\d{4}-\d{2}-\d{2}T/.test(d.offer_end)){const dt=new Date(d.offer_end);d.offer_end=isNaN(dt)?null:dt.toISOString()}
+   const errors=[];if(!d.ar)errors.push("الاسم ناقص");if(!["home","kitchen","perf","elec","acc"].includes(d.cat))errors.push("التصنيف غير صحيح");if(!(d.retail>0))errors.push("ثمن التجزئة غير صحيح");if(d.wholesale<0||(d.wholesale>0&&d.wholesale>=d.retail))errors.push("ثمن الجملة يجب أن يكون أقل من التجزئة");if(!Number.isInteger(d.min)||d.min<2)errors.push("الكمية الدنيا يجب أن تكون 2 أو أكثر");if(!Number.isInteger(d.stock)||d.stock<0)errors.push("المخزون غير صحيح");
+   rows.push({row:i+2,data:d,errors});
+ });
+ IMPORT_ROWS=rows;renderImportPreview();
+}
+function renderImportPreview(){
+ const good=IMPORT_ROWS.filter(x=>!x.errors.length).length,bad=IMPORT_ROWS.length-good;
+ $("#importstatus").textContent=`عدد المنتجات: ${IMPORT_ROWS.length} · صالح: ${good} · فيه أخطاء: ${bad}`;
+ $("#importpreview").innerHTML=IMPORT_ROWS.slice(0,30).map(x=>`<div class="it"><span>${x.row}. ${esc(x.data.ar||"بدون اسم")} · ${x.data.retail} درهم</span><span class="st" style="background:${x.errors.length?"#fee2e2":"#dcfce7"}">${x.errors.length?esc(x.errors.join("، ")):"صالح"}</span></div>`).join("")+(IMPORT_ROWS.length>30?`<small>يتم عرض أول 30 صفاً فقط.</small>`:"");
+ $("#doimport").disabled=good===0;
+}
+async function doImport(){
+ const rows=IMPORT_ROWS.filter(x=>!x.errors.length).map(x=>x.data);
+ if(!rows.length)return;
+ if(!confirm(`غادي نضيف ${rows.length} منتوج إلى قاعدة البيانات، والمنتجات المفعلة غادي تبان مباشرة في المتجر. نكمل؟`))return;
+ const btn=$("#doimport");btn.disabled=true;btn.textContent="جاري الحفظ...";
+ try{const r=await api("/rest/v1/products",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(rows)});if(!r.ok)throw new Error(await errTxt(r));flash(`تم استيراد ${rows.length} منتوج بنجاح.`);IMPORT_ROWS=[];tab="prod";show();}
+ catch(er){flash("فشل الاستيراد: "+er.message,1);btn.disabled=false;btn.textContent="حفظ المنتجات في المتجر"}
 }
 function formView(){
   if(!editing.imgs)editing.imgs=editing.img?[editing.img]:[];
@@ -186,6 +254,10 @@ document.addEventListener("click",async e=>{
   const g=a=>e.target.closest("["+a+"]");let x;
   if(x=g("data-tab")){tab=x.dataset.tab;editing=null;show()}
   else if(e.target.id==="logout"){keep(null);boot()}
+  else if(g("data-import")){importView()}
+  else if(e.target.id==="backprod"){tab="prod";show()}
+  else if(e.target.id==="template"){csvTemplate()}
+  else if(e.target.id==="doimport"){doImport()}
   else if(g("data-new")){editing={cat:"home",ar:"",fr:"",dar:"",dfr:"",retail:0,wholesale:0,min:6,stock:0,offer:false,active:true,e:"📦",bg:"#ffffff",imgs:[]};formView()}
   else if(x=g("data-edit")){editing={...PR.find(p=>p.id==x.dataset.edit)};formView()}
   else if(x=g("data-del")){const p=PR.find(p=>p.id==x.dataset.del);if(confirm("حذف «"+p.ar+"» نهائياً؟")){const r=await api("/rest/v1/products?id=eq."+p.id,{method:"DELETE"});r.ok?(flash("تم الحذف"),prodView()):flash(await errTxt(r),1)}}
@@ -204,6 +276,7 @@ document.addEventListener("click",async e=>{
       flash("تم الاستيراد.");prodView()}catch(er){flash("فشل الاستيراد: "+er.message,1)}}
 });
 document.addEventListener("change",async e=>{
+  if(e.target.id==="importfile"&&e.target.files[0]){try{flash("جاري قراءة ملف Excel...");await readImportFile(e.target.files[0]);flash("تمت قراءة الملف. راجع الصفوف قبل الحفظ.")}catch(er){flash(er.message,1)}e.target.value=""}
   if(e.target.id==="vfile"&&e.target.files[0]){
     const f=e.target.files[0];
     if(f.size>20*1024*1024){flash("الفيديو كبير (أكثر من 20MB).",1);e.target.value="";return}
